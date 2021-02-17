@@ -1,0 +1,35 @@
+{% extends "header.html" %} {% set pageName = 'αlpha' %} {% set noTabTitle = True %} {% block content %}
+<title>{{appname}}</title>
+<div class="topwhenmobile" style="display: flex; align-items: center; justify-content: center; flex-direction: column; width: 100%; height: 100%;">
+    <div style="padding: 8px; padding-top: 84px;">
+        <style>
+            div h1,
+            h2 {
+                text-align: center;
+            }
+        </style>
+        <h1 id="bigTitle" class="big_nomobile">Write, practice, test, easy.</h1>
+        <h1><span id="subtitle">A platform that lets you write Java, run it, and challenge others to do the same, right in your browser.</span>{% if username == "" %}<br>
+            <a href="/signup">Sign Up</a> or <a href="/signin"> Sign in</a>{% else %}<br>
+            <a href="/new">Open testeditor</a>{% endif %}</h1>
+    </div>
+</div>
+<script>
+    typeAnimate('bigTitle', 75)
+        // typeAnimate('subtitle', 50)
+
+    function typeAnimate(elemID, time) {
+        var elem = document.getElementById(elemID)
+        var message = elem.innerHTML
+        elem.innerHTML = ""
+        var pos = 0
+        setInterval(() => {
+            elem.innerHTML = message.substring(0, ++pos) + "|"
+            if (pos >= message.length) {
+                clearInterval();
+                elem.innerHTML = message
+            }
+        }, time);
+    }
+</script>
+{% endblock %}

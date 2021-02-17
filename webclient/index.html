@@ -1,0 +1,551 @@
+<html>
+
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Triangle</title>
+    <link rel="stylesheet" href="https://hx.cy2.me/basicstyle.css">
+    <link rel="manifest" href="./manifest.webmanifest">
+    <meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
+    <script>
+        if (navigator.serviceWorker.controller) {
+            console.log("Active service worker found");
+        } else {
+            navigator.serviceWorker
+                .register("./serviceworker.js", {
+                    scope: "/"
+                }).then(function(reg) {
+                    console.log("Service worker registered");
+                });
+        }
+    </script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+</head>
+<!-- <script src="./main.js"></script> -->
+<style>
+    body {
+        margin: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        position: relative;
+    }
+    
+    #main-app {
+        display: flex;
+        height: 100%;
+        width: 100%;
+        transition: 240ms;
+        overflow: hidden;
+    }
+    
+    #chatselectorpanel {
+        height: 100%;
+        width: calc(150px + 20%);
+        background-color: #202020;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        z-index: 5;
+        min-width: 300px;
+        position: relative;
+    }
+    
+    #chatview {
+        height: 100%;
+        flex: 1;
+        background-color: #101010;
+        /* padding-left: 16px; */
+        /* padding-right: 16px; */
+        display: flex;
+        flex-direction: column;
+        position: relative;
+        right: 0;
+        left: 0;
+        overflow-y: auto;
+    }
+    
+    .chat-float {
+        z-index: 2;
+        position: absolute;
+    }
+    
+    #currentgroup {
+        background-color: #202020;
+        border-radius: 32px;
+        padding: 0;
+        top: 16;
+        left: 16;
+        padding-right: 32px;
+        cursor: unset;
+    }
+    
+    #chatcontrols {
+        display: flex;
+        bottom: 16px;
+        right: 16px;
+        left: 16px;
+    }
+    
+    #chatcontrols button,
+    input {
+        height: 42px;
+        margin: 4px;
+        background-color: #222222;
+    }
+    
+    #chatcontrols button {
+        width: 42px;
+        padding: 0;
+    }
+    
+    #chats {
+        /* padding-top: 84px; */
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        flex: 1;
+        position: relative;
+        padding-bottom: 80px;
+    }
+    
+    .chatitem {
+        padding: 10px;
+        display: flex;
+        align-items: center;
+        height: 64px;
+        /* border-radius: 8px; */
+        /* margin-bottom: 8px;
+        margin-left: 8px;
+        margin-right: 8px; */
+        background-color: #181818;
+        transition: 120ms;
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+    }
+    
+    .chatitem_selected {
+        background-color: white !important;
+    }
+    
+    .chatitem_selected>*>p {
+        color: black;
+    }
+    
+    #chats .chatitem:hover {
+        background-color: #555;
+    }
+    
+    #chats .chatitem:active {
+        background-color: #444;
+        transform: translateY(4px);
+    }
+    
+     ::-webkit-scrollbar {
+        width: 10px;
+    }
+    
+     ::-webkit-scrollbar-track {
+        background: #1c1c1c;
+    }
+    
+     ::-webkit-scrollbar-thumb {
+        background: #666;
+    }
+    
+     ::-webkit-scrollbar-thumb:hover {
+        background: #444;
+    }
+    
+    .grouppic {
+        justify-self: center;
+        height: 64px;
+        width: 64px;
+        border-radius: 32px;
+        -moz-user-select: none;
+        -webkit-user-select: none;
+    }
+    
+    .modal {
+        background-color: #111;
+        width: 500px;
+        height: 200px;
+        border-radius: 16px;
+        display: flex;
+        flex-direction: column;
+        padding: 32px;
+        align-items: flex-start;
+        transition: 180ms cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        transform: scale(0.8);
+        pointer-events: none;
+        opacity: 0;
+        z-index: 10;
+        box-sizing: border-box;
+    }
+    
+    .grouplabel {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        justify-content: center;
+        padding-left: 16px;
+    }
+    
+    .grouplabel p {
+        margin: 0;
+    }
+    
+    .grouplabel .groupname {
+        font-size: 20px;
+        font-weight: bold;
+    }
+    
+    .grouplabel .youmarker {
+        font-weight: bold;
+    }
+    
+    #chatbackbutton {
+        display: none;
+    }
+    
+    @media screen and (max-width: 600px) {
+        #chatselectorpanel {
+            /* width: unset; */
+            width: 100%;
+            /* flex: 1; */
+            position: absolute;
+            /* transform: scaleX(0); */
+            height: 100%;
+            transition: 240ms cubic-bezier(0.13, 0.77, 0, 0.95);
+        }
+        .fsm-hidden {
+            transform: translateX(-100%);
+        }
+        #chatview {
+            /* width: unset; */
+            width: 100%;
+            /* flex: 1; */
+            height: 100%;
+            position: absolute;
+            /* transform: scaleX(0.5); */
+        }
+        .modal {
+            width: 100%;
+            /* padding: 0; */
+            height: 100%;
+            border-radius: 0;
+            align-self: flex-start;
+        }
+        #chatbackbutton {
+            display: block;
+        }
+    }
+    
+    .hoverfancy {
+        cursor: pointer;
+    }
+    
+    button {
+        user-select: none;
+        -webkit-tap-highlight-color: transparent;
+    }
+    
+    @keyframes fadein {
+        0% {
+            opacity: 0;
+        }
+    }
+    
+    .fadesin {
+        animation: fadein 500ms;
+    }
+    
+    .messages {
+        display: flex;
+        width: 100%;
+        height: 100%;
+        flex-direction: column;
+        /* justify-content: flex-end; */
+        padding-bottom: 84px;
+        padding-top: 96px;
+        padding-left: 16px;
+        padding-right: 16px;
+        box-sizing: border-box;
+        overflow-y: auto;
+        scroll-behavior: smooth;
+        overflow-x: hidden;
+    }
+    
+    .leftmessage {
+        align-self: flex-start;
+        margin: 4px;
+        background-color: white;
+        padding: 8px;
+        border-radius: 6px;
+    }
+    
+    .leftmessage p {
+        margin: 0;
+        color: black;
+        text-align: left;
+    }
+    
+    .backbutton {
+        background-color: #222222;
+        width: 48px;
+        height: 48px;
+    }
+</style>
+
+<body>
+    <div id="onlinedot" style="position: fixed; top: 8px; left: 8px; background-color: #f00; width: 8px; height: 8px; border-radius: 4px; z-index: 100;"></div>
+    <div id="settings" class="modal" style="position: absolute;">
+        <h1 style="margin-top: 0;">Account</h1>
+        <button class="hoverfancy" style="position: absolute; top: 16px; right: 16px; width: 48px; height: 48px;" onclick="closeModal('settings')"><i class="material-icons" style="color: white;">close</i></button>
+    </div>
+    <div id="newgroup" class="modal" style="position: absolute;">
+        <h1 style="margin-top: 0;">New Group</h1>
+        <button class="hoverfancy" style="position: absolute; top: 16px; right: 16px; width: 48px; height: 48px;" onclick="closeModal('newgroup')"><i class="material-icons" style="color: white;">close</i></button>
+    </div>
+    <div id="offline" class="modal" style="position: absolute; display: flex; flex-direction: column; align-items: center;">
+        <h1 style="margin-top: 0;">You are offline. Please reload.</h1>
+        <button class="hoverfancy" onclick="window.location.reload()" style="height: 48px; display: flex; align-items: center; text-align: center;"><i class="material-icons" style="color: white; margin-right: 8px;">refresh</i> Reload Now</button>
+        <!-- <button class="hoverfancy" style="position: absolute; top: 16px; right: 16px; width: 48px; height: 48px;" onclick="closeModal('newgroup')"><i class="material-icons" style="color: white;">close</i></button> -->
+    </div>
+    <div id="main-app">
+        <div id="chatselectorpanel">
+            <div style="padding: 10px; backdrop-filter: blur(12px); display: flex; align-items: center; top: 0; z-index: 5;">
+                <div style="display: flex; flex: 1;">
+                    <img src="./images/triangle_encircled.svg" style="justify-self: center; height: 64px;">
+                    <div style="flex: 1; display: flex; overflow: hidden; width: 3px;">
+                        <h2 style="margin: 16px; display: block;">@cyfinfaza</h2>
+                    </div>
+
+                </div>
+                <button class="hoverfancy" onclick="showModal('settings')" style="justify-self: flex-end; margin-right: 16px; width: 48px; height: 48px;"><i class="material-icons" style="color: white;">settings</i></button>
+            </div>
+            <div id="chats">
+                <template id="chatitemtemplate">
+                    <div class="chatitem" onclick="groupItemClick(this.id)">
+                        <img src="https://source.unsplash.com/random" class="grouppic">
+                        <div class="grouplabel">
+                            <p class="groupname">Group Name</p>
+                            <p><span class="youmarker">You: </span><span class="grouplabelpreview">Hey there!</span></p>
+                        </div>
+                    </div>
+                </template>
+            </div>
+            <button class="hoverfancy" onclick="showModal('newgroup')" style="position: absolute; bottom: 16px; right: 16px; width: 48px; height: 48px;"><i class="material-icons" style="color: white;">group_add</i></button>
+        </div>
+        <div id="chatview">
+            <div id="chatcontrols" class="chat-float">
+                <button><i class="material-icons" style="color: white;">add</i></button>
+                <input id="msg-input" type="text" style="flex: 1; min-width: 0;" placeholder="message" onclick="messages.scrollTop = messages.scrollHeight;" onkeydown="if(event.keyCode == 13) {send();}">
+                <button onclick="send()"><i class="material-icons" style="color: white;">send</i></button>
+            </div>
+            <div class="chat-float" style="display: flex; top: 16; left: 16; align-items: center;">
+                <button class="backbutton" id="chatbackbutton" onclick="closeChat()" style="margin-right: 8px;"><i class="material-icons" style="color: white; width: 14px;">arrow_back_ios</i></button>
+                <div id="currentgroup" class="chatitem">
+                    <img src="https://source.unsplash.com/random" class="grouppic">
+                    <div class="grouplabel">
+                        <p class="groupname">Group Name</p>
+                        <p><span id="currentgrouponline">0</span> Online</p>
+                    </div>
+                </div>
+            </div>
+            <div class="messages" id="messages">
+                <template id="leftmessagetemplate">
+                    <div class="leftmessage fadesin">
+                        <p style="font-size: 12px;"><span class="msg_from">@cyfinfaza</span> • <span class="msg_time">23:49</span></p>
+                        <p class="msg_msg">some message</p>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+</body>
+<script>
+    // window.addEventListener('load', function() {
+    //     window.history.pushState({}, '')
+    //     window.history.pushState({}, '')
+    // })
+    var onlinedot = document.getElementById('onlinedot')
+    const CI_TEMP = document.getElementById('chatitemtemplate');
+    const LMSG_TEMP = document.getElementById('leftmessagetemplate');
+    var groupitems = []
+    var onscreenmsgs = []
+    var earliest;
+    var started = false;
+    var onlineText = document.getElementById('currentgrouponline')
+    var messageInput = document.getElementById('msg-input')
+    var messages = document.getElementById('messages')
+
+    function makeGroupItem(name, preview, you) {
+        var ci = CI_TEMP.cloneNode(true)
+        ci.content.querySelector('.groupname').innerHTML = name
+        if (!you) ci.content.querySelector('.youmarker').style.display = "none"
+        ci.content.querySelector('.grouplabelpreview').innerHTML = preview
+            // ci.content.querySelector('.chatitem').addEventListener('click', groupItemClick("groupitem" + groupitems.length), false)
+        ci.content.querySelector('.chatitem').id = "groupitem" + groupitems.length
+        document.getElementById('chats').appendChild(ci.content)
+        groupitems.push(name)
+    }
+
+    function makeMessage(msg, from, time) {
+        if (msg.indexOf("<style>") > -1 || msg.indexOf("<script>") > -1) return
+        var item = LMSG_TEMP.cloneNode(true)
+        item.content.querySelector('.msg_from').innerHTML = from
+        item.content.querySelector('.msg_time').innerHTML = time
+        item.content.querySelector('.msg_msg').innerHTML = msg
+            // if (!you) item.content.querySelector('.youmarker').style.display = "none"
+            // ci.content.querySelector('.grouplabelpreview').innerHTML = preview
+            // ci.content.querySelector('.chatitem').addEventListener('click', groupItemClick("groupitem" + groupitems.length), false)
+        item.content.querySelector('.leftmessage').id = "onscreenmsg" + onscreenmsgs.length
+        document.getElementById('messages').appendChild(item.content)
+        groupitems.push(time)
+    }
+
+    for (let index = 0; index < 5; index++) {
+        makeGroupItem("Some Group", "some message preview", index % 2 == 0)
+    }
+
+    function groupItemClick(id) {
+        document.getElementById('chatselectorpanel').classList.add('fsm-hidden')
+        document.querySelectorAll('.chatitem').forEach(element => {
+            element.classList.remove('chatitem_selected')
+        })
+        document.querySelector('#' + id).classList.add('chatitem_selected')
+            // window.hash = "chat"
+            // window.addEventListener('hashchange', closeChat())
+    }
+
+    function closeChat() {
+        // if (window.hash == "") {
+        document.getElementById('chatselectorpanel').classList.remove('fsm-hidden')
+        document.querySelectorAll('.chatitem').forEach(element => {
+            element.classList.remove('chatitem_selected')
+        })
+        window.hash = ""
+            // }
+    }
+
+    function showModal(id) {
+        $('#' + id).css({
+            'transform': 'scale(1)',
+            'pointer-events': 'all',
+            'opacity': '1'
+        })
+        $('#main-app').css({
+            'filter': 'contrast(0.8)',
+            'pointer-events': 'none'
+        })
+    }
+
+    function closeModal(id) {
+        $('#' + id).css({
+            'transform': 'scale(0.8)',
+            'pointer-events': 'none',
+            'opacity': '0'
+        })
+        $('#main-app').css({
+            'filter': 'none',
+            'pointer-events': 'all'
+        })
+    }
+
+    var connected = false
+        // Create WebSocket connection.
+    if (window.location.hash == "#local") {
+        var socket = new WebSocket('ws://localhost:6006');
+        document.getElementById('tabtitle').innerHTML = "LOCAL Chat"
+    } else var socket = new WebSocket('wss://triangle-wss.secure1.cy2.me');
+    // Connection opened
+    socket.addEventListener('open', function(event) {
+        onlinedot.style.backgroundColor = "#0f0"
+        console.log('Connected to the WS Server! Fetching old messages.')
+        connected = true
+            // firstSync(40)
+    });
+
+    // Connection closed
+    socket.addEventListener('close', function(event) {
+        console.log('Disconnected from the WS Server!')
+        onlinedot.style.backgroundColor = "#f00"
+        connected = false;
+        showModal('offline')
+            // setInterval(() => {
+            //     if (connected) clearInterval()
+            //     else socket = new WebSocket('wss://triangle-wss.secure1.cy2.me');
+            // }, 3000);
+    });
+
+    // Listen for messages
+    socket.addEventListener('message', function(event) {
+        console.log('rx: ', event.data);
+        // console.log(event.data)
+        result = JSON.parse(event.data)
+        switch (result['type']) {
+            case 'rxGroupUpdate':
+                onlineText.innerHTML = result['viewers']
+                break
+            case 'queueUpdate':
+                firstSync(40).then(queueUpdate(result['updates']))
+                console.log(result['updates'])
+                started = true
+                break
+            case 'message':
+                makeMessage(result['message'], "@someone", "00:00")
+                window.navigator.vibrate(5)
+                messages.scrollTop = messages.scrollHeight;
+                break
+        }
+    });
+    // Send a msg to the websocket
+    function send() {
+        socket.send(messageInput.value)
+        messageInput.value = ""
+        messageInput.focus()
+            // msgs.scrollTop = msgs.scrollHeight;
+    }
+
+    async function firstSync(num) {
+        var response = await fetch('https://upstairs.cy2.me/api/group0/updates/last?num=' + num);
+        var list = await response.json()
+        console.log(list)
+        earliest = list[0]['i']
+            // var already = messages.innerHTML
+            // messages.innerHTML = ""
+        list.forEach(element => {
+            // messages.innerHTML += "<br>" + element['m']
+            makeMessage(element['m'], "@someone", "00:00")
+        });
+        // messages.innerHTML += already
+        messages.scrollTop = messages.scrollHeight;
+        console.log(earliest)
+    }
+    // async function getMore(num) {
+    //     var response = await fetch('https://upstairs.cy2.me/api/group0/updates/between?end=' + (earliest - 1) + '&start=' + (earliest - num));
+    //     var list = await response.json()
+    //     console.log(list)
+    //     earliest = list[0]['i']
+    //     var oldscrollheight = msgs.scrollHeight;
+    //     var already = messages.innerHTML
+    //     messages.innerHTML = ""
+    //     list.forEach(element => {
+    //         messages.innerHTML += "<br>" + element['m']
+    //     });
+    //     messages.innerHTML += already
+    //     msgs.scrollTop = msgs.scrollHeight - oldscrollheight;
+    //     console.log(earliest)
+    // }
+
+    function queueUpdate(updates) {
+        updates.forEach(element => {
+            makeMessage(element['m'], "@someone", "00:00")
+        })
+    }
+</script>
+
+</html>
