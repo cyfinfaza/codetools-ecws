@@ -1,11 +1,31 @@
-{% extends "header.html" %} {% set hideEditorButton = True %} {% set pageName = 'Challenge' %} {% block content %}
+{% extends "header.html" %} {% set hideEditorButton = True %} {% set pageName = 'Challenge' %} {% block content %} {% set editorType = 'editor_standalone' %}
 <link rel="stylesheet" href="static/editorstyle.css">
 <div class="editor-main" onresize="editor.layout()">
     <div id="descriptionSidebar" class="sidebar">
-        <h1>Return the string "Hello World"</h1>
-        <p>This is a really hard challenge. It is unlikely you will be able to complete it. Use a <code>return</code> statment to return the string.</p>
+        <h1 id="contentName" style="margin-bottom: 0;">Return the string "Hello World"</h1>
+        {%if editorType != 'editor_challenge'%}
+        <button style="margin: 12px; margin-left: 0; margin-bottom: 24px;" onclick="completeChangeTitle()">Change Title</button>{%endif%}
+        <p style="margin-top: 0px;" id="contentDescription">loading...</p>
+        <!-- <p id="contentDescription">This is a really hard challenge. It is unlikely you will be able to complete it. Use a <code>return</code> statment to return the string.</p> -->
     </div>
-    <div id="monacoContainer">
+    <div class="threeCenter">
+        {%if editorType == 'editor_standalone'%}
+        <div class="tabs">
+            <div onclick="changeEditorTo('code')" class="editor-tab_code clickfancy">Code</div>
+            <div onclick="changeEditorTo('description')" class="editor-tab_description clickfancy">Description</div>
+        </div>
+        {%endif%} {%if editorType == 'challenge'%}
+        <div class="tabs">
+            <div onclick="changeEditorTo('code')" class="editor-tab_code clickfancy">Starter Code</div>
+            <div onclick="changeEditorTo('description')" class="editor-tab_description clickfancy">Description</div>
+            <div onclick="changeEditorTo('description')" class="editor-tab_description clickfancy">Solution</div>
+        </div>
+        {%endif%} {%if editorType == 'editor_challenge'%}
+        <div class="tabs">
+            <div onclick="changeEditorTo('code')" class="editor-tab_code clickfancy">Code</div>
+        </div>
+        {%endif%}
+        <div id="monacoContainer"></div>
     </div>
     <div id="argsSidebar" class="sidebar">
         <h1>Run and Test</h1>
@@ -35,13 +55,42 @@
 <!-- <script src="https://unpkg.com/monaco-editor@latest/min/vs/loader.js "></script> -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.22.3/min/vs/loader.min.js" integrity="sha512-+8+MX2hyUZxaUfMJT0ew+rPsrTGiTmCg8oksa6uVE/ZlR/g3SJtyozqcqDGkw/W785xYAvcx1LxXPP+ywD0SNw==" crossorigin=" anonymous "></script>
 <script>
-    var knowCode = "";
-    var myContentID = "{{myContentID}}"
+    const editorType = "{{editorType}}";
+    const myContentID = "{{myContentID}}"
+    switch (editorType) {
+        case 'editor_standalone':
+            codeKeys = ['code', 'description']
+        case 'editor_challenge':
+            codeKeys = ['code']
+        case 'challenge':
+            codeKeys = ['code', 'description', 'solutionCode']
+    }
+    var codeKeys = ['code', 'description']
+    var knowCode = {};
+    var editorCode = {};
+    const editorSettings = {
+        code: {
+            language: 'java'
+        },
+        description: {
+            language: 'html'
+        },
+        solutionCode: {
+            language: 'java'
+        }
+    }
+    codeKeys.forEach(element => {
+        knowCode[element] = ""
+        editorCode[element] = ""
+
+    });
+    var editorHas = "code";
     var uploadInstanceCount = 1;
     var uploadFlag = false;
     document.querySelector('body').style.overflow = "hidden";
     var uploadStatusIcon = document.getElementById('uploadStatusIcon')
     var uploadStatusText = document.getElementById('uploadStatusText')
+    var contentDescriptionText = document.getElementById('contentDescription')
     var runbutton = document.getElementById('runbutton');
     var args;
     var knowArgs;
@@ -54,37 +103,50 @@
     let editor;
     fetch('/contentget?id=' + myContentID).then(response => response.json()).then(data => require(["vs/editor/editor.main"], function() {
         console.log(data)
-        editor = monaco.editor.create(document.getElementById('monacoContainer'), {
-            value: data['data']['code'],
-            language: 'java',
-            theme: 'vs-dark',
-            minimap: {
-                enabled: false
-            },
-            automaticLayout: true,
-            wordWrap: true,
-            fontFamily: "DM Mono, monospace ",
-            disableMonospaceOptimizations: true
+        knowCode.code = data['data']['code']
+        knowCode.description = data['data']['description']
+        editorCode.code = data['data']['code']
+        editorCode.description = data['data']['description']
+        document.querySelectorAll('.tabs div').forEach(element => {
+            element.classList.remove('tab_clicked')
         });
-        knowCode = data['data']['code'];
+        document.querySelector('.tabs .editor-tab_' + editorHas).classList.add('tab_clicked')
         const tmp_args = data['data']['args_mutable']
         args = tmp_args
         knowArgs = tmp_args
         console.log(args)
         console.log(knowArgs)
         genArgs(tmp_args)
+        editor = monaco.editor.create(document.getElementById('monacoContainer'), {
+            value: editorCode[editorHas],
+            language: editorSettings[editorHas].language,
+            theme: 'vs-dark',
+            minimap: {
+                enabled: false
+            },
+            automaticLayout: true,
+            wordWrap: true,
+            fontFamily: "DM Mono, monospace",
+            disableMonospaceOptimizations: true
+        });
         setInterval(() => {
             updateArgsLocal()
+            editorCode[editorHas] = editor.getValue()
                 // console.log(JSON.stringify(args) != JSON.stringify(knowArgs))
-            if (editor.getValue() != knowCode || JSON.stringify(args) != JSON.stringify(knowArgs)) {
+            var codeBad = false;
+            if (editorCode.description != contentDescriptionText.innerHTML) contentDescriptionText.innerHTML = editorCode.description
+            codeKeys.forEach(element => {
+                if (editorCode[element] != knowCode[element]) codeBad = true;
+            });
+            if (codeBad || JSON.stringify(args) != JSON.stringify(knowArgs)) {
                 uploadStatusColor("#ffdd00")
-                uploadStatusText.innerHTML = "Saving... "
-                uploadStatusIcon.innerHTML = "sync "
+                uploadStatusText.innerHTML = "Saving..."
+                uploadStatusIcon.innerHTML = "sync"
                 uploadFlag = true;
             } else {
                 uploadStatusColor("#00ff00")
-                uploadStatusText.innerHTML = "Saved "
-                uploadStatusIcon.innerHTML = "cloud_done "
+                uploadStatusText.innerHTML = "Saved"
+                uploadStatusIcon.innerHTML = "cloud_done"
             }
         }, 100);
         setInterval(() => {
@@ -106,22 +168,27 @@
     }
 
     async function saveSession() {
-        var toUpload = editor.getValue();
+        var toUpload = {...editorCode
+        }
         var argsToUplaod = args;
+        var uploadBody = {
+            contentID: myContentID,
+            args_mutable: argsToUplaod,
+        }
+        codeKeys.forEach(element => {
+            uploadBody[element] = toUpload[element]
+        })
         await fetch('/contentset', {
                 method: 'POST', // or 'PUT'
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({
-                    contentID: myContentID,
-                    code: toUpload,
-                    args_mutable: argsToUplaod,
-                }),
+                body: JSON.stringify(uploadBody),
             })
             .then(response => {
                 response.json().then(result => console.log(result))
-                knowCode = toUpload;
+                knowCode = {...toUpload
+                }
                 knowArgs = argsToUplaod;
                 uploadFlag = false;
             })
@@ -257,6 +324,17 @@
             })
         });
         args = args_temp;
+    }
+
+    function changeEditorTo(changeTo) {
+        editor.updateOptions(editorSettings[changeTo])
+        monaco.editor.setModelLanguage(editor.getModel(), editorSettings[changeTo].language)
+        editor.setValue(editorCode[changeTo])
+        editorHas = changeTo
+        document.querySelectorAll('.tabs div').forEach(element => {
+            element.classList.remove('tab_clicked')
+        });
+        document.querySelector('.tabs .editor-tab_' + changeTo).classList.add('tab_clicked')
     }
 
     function makeid(length) {

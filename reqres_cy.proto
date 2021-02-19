@@ -1,35 +1,39 @@
 syntax = "proto2";
 
 message Request {
-    required string inputMethod = 1;
-    required string inputMethodName = 2;
-    required string solutionMethod = 3;
+    optional string inputMethod = 1;
+    optional string inputMethodName = 2;
+    optional string solutionMethod = 3;
     repeated string inputs = 4;
 }
 
 message Response {
 
     enum RunResultType {
-        Success = 1;
-        CompilerError = 2;
+        Success = 0;
+        CompilerError = 1;
     }
 
-    optional RunResultType type = 1;
-    repeated Output results = 2;
+    optional RunResultType methodResultType = 1;
+    optional RunResultType solutionResultType = 2;
+    optional string methodCompileStatus = 3;
+    optional string solutionCompileStatus = 4;
+    repeated Output results = 5;
 
+}
+
+enum OutputResultType {
+    Success = 0;
+    RuntimeError = 1;
+    SecurityError = 2;
 }
 
 message Output {
 
-    enum OutputResultType {
-        Success = 1;
-        RuntimeError = 2;
-        SecurityError = 3;
-    }
-
-    optional OutputResultType type = 1;
-    optional string solutionOutput = 2;
+    optional string solutionOutput = 1;
+    optional OutputResultType solutionOutputType = 2;
     optional string methodOutput = 3;
-    optional bool match = 4;
+    optional OutputResultType methodOutputType = 4;
+    optional bool match = 5;
 
 }

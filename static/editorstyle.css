@@ -28,11 +28,47 @@
         transition: 240ms ease;
     }
     
-    #monacoContainer {
+    .threeCenter {
         flex: 5;
         overflow: hidden;
         position: relative;
         padding-top: 84px;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        box-sizing: border-box;
+    }
+    
+    #monacoContainer {
+        flex: 1;
+    }
+    
+    .tabs {
+        padding: 10px;
+        align-self: flex-start;
+        display: flex;
+    }
+    
+    .tabs div {
+        margin-right: 8px;
+        height: 30px;
+        padding-inline: 12px;
+        border-radius: 15px;
+        background-color: #222;
+        display: flex;
+        align-items: center;
+        user-select: none;
+        transition: 240ms ease !important;
+    }
+    
+    .tabs div:hover {
+        background-color: #444;
+    }
+    
+    .tabs .tab_clicked {
+        background-color: white !important;
+        color: black;
+        box-shadow: 0 0 8px 0px white;
     }
     
     .uploadStatusDiv {
