@@ -1,11 +1,11 @@
-{% extends "header.html" %} {% set hideEditorButton = True %} {% set pageName = 'Challenge' %} {% block content %} {% set editorType = 'editor_standalone' %}
+{% extends "header.html" %} {% set hideEditorButton = True %} {% block content %}
 <link rel="stylesheet" href="static/editorstyle.css">
 <div class="editor-main" onresize="editor.layout()">
     <div id="descriptionSidebar" class="sidebar">
         <h1 id="contentName" style="margin-bottom: 0;">Return the string "Hello World"</h1>
         {%if editorType != 'editor_challenge'%}
-        <button style="margin: 12px; margin-left: 0; margin-bottom: 24px;" onclick="completeChangeTitle()">Change Title</button>{%endif%}
-        <p style="margin-top: 0px;" id="contentDescription">loading...</p>
+        <button style="margin: 12px; margin-left: 0;" onclick="completeChangeTitle()">Change Title</button>{%endif%}
+        <p style="margin-top: 24px;" id="contentDescription">loading...</p>
         <!-- <p id="contentDescription">This is a really hard challenge. It is unlikely you will be able to complete it. Use a <code>return</code> statment to return the string.</p> -->
     </div>
     <div class="threeCenter">
@@ -16,9 +16,9 @@
         </div>
         {%endif%} {%if editorType == 'challenge'%}
         <div class="tabs">
-            <div onclick="changeEditorTo('code')" class="editor-tab_code clickfancy">Starter Code</div>
+            <div onclick="changeEditorTo('code')" class="editor-tab_code clickfancy">Solution</div>
+            <div onclick="changeEditorTo('starterCode')" class="editor-tab_starterCode clickfancy">Starter Code</div>
             <div onclick="changeEditorTo('description')" class="editor-tab_description clickfancy">Description</div>
-            <div onclick="changeEditorTo('description')" class="editor-tab_description clickfancy">Solution</div>
         </div>
         {%endif%} {%if editorType == 'editor_challenge'%}
         <div class="tabs">
@@ -28,22 +28,30 @@
         <div id="monacoContainer"></div>
     </div>
     <div id="argsSidebar" class="sidebar">
-        <h1>Run and Test</h1>
+        <h1>{%if editorType == 'challenge'%}Prepare Tests{%else%}Run and Test{%endif%}</h1>
         <button id="runbutton" onclick="runcode()" class="fancybutton" style="width: 100%; margin: 0;" onmouseover="this.classList.remove('fancybutton_on', 'fancybutton_error', 'fancybutton_warn'); this.innerHTML='Run Tests'">Run Tests</button>
         <div id="compilerError" style="display: none; flex-direction: column; align-items: center; color: #F88;">
             <p style="display: flex; align-items: center; margin-bottom: 8px;"><i class="material-icons" style="margin-right: 8px;">warning</i> Compiler Error</p>
             <p id="compilerErrorText" class="monofont" style="margin: 0; font-size: 12px; align-self: flex-start;">jsldkfj</p>
         </div>
         <div id="argslist" style="min-height: 24px;">
-            <template>
-                <div class="arg">
+            <template class="arg_readonly_temp">
+                <div class="arg_readonly arg">
+                    <div class="inputdiv">
+                        <p>( <span class="argText"></span> )</p>
+                    </div>
+                    <p class="resultText monofont"><i class="material-icons outputArrow" style="width: 24px; transform: translateY(25%);">arrow_forwards</i> <span class="resultOutput">No output</span></p>
+                </div>
+            </template>
+            <template class="arg_temp">
+                <div class="arg_mutable arg">
                     <div class="inputdiv">
                         <p>(</p>
                         <input type="text" class="argin monofont" placeholder="args" size="1">
                         <p>)</p>
                         <button class="removeButton hoverfancy"><i class="material-icons">close</i></button>
                     </div>
-                    <p class="resultText monofont"><i class="material-icons" style="width: 24px; transform: translateY(25%);">arrow_forwards</i> <span class="resultOutput">No output</span></p>
+                    <p class="resultText monofont"><i class="material-icons outputArrow" style="width: 24px; transform: translateY(25%);">arrow_forwards</i> <span class="resultOutput">No output</span></p>
                 </div>
             </template>
         </div>
@@ -57,17 +65,6 @@
 <script>
     const editorType = "{{editorType}}";
     const myContentID = "{{myContentID}}"
-    switch (editorType) {
-        case 'editor_standalone':
-            codeKeys = ['code', 'description']
-        case 'editor_challenge':
-            codeKeys = ['code']
-        case 'challenge':
-            codeKeys = ['code', 'description', 'solutionCode']
-    }
-    var codeKeys = ['code', 'description']
-    var knowCode = {};
-    var editorCode = {};
     const editorSettings = {
         code: {
             language: 'java'
@@ -75,10 +72,25 @@
         description: {
             language: 'html'
         },
-        solutionCode: {
+        starterCode: {
             language: 'java'
         }
     }
+    var codeKeys = {};
+    switch (editorType) {
+        case 'editor_standalone':
+            codeKeys = ['code', 'description']
+            break;
+        case 'editor_challenge':
+            codeKeys = ['code']
+            break;
+        case 'challenge':
+            codeKeys = ['code', 'description', 'starterCode']
+            break;
+    }
+    // var codeKeys = ['code', 'description']
+    var knowCode = {};
+    var editorCode = {};
     codeKeys.forEach(element => {
         knowCode[element] = ""
         editorCode[element] = ""
@@ -103,20 +115,26 @@
     let editor;
     fetch('/contentget?id=' + myContentID).then(response => response.json()).then(data => require(["vs/editor/editor.main"], function() {
         console.log(data)
-        knowCode.code = data['data']['code']
-        knowCode.description = data['data']['description']
-        editorCode.code = data['data']['code']
-        editorCode.description = data['data']['description']
+        if (editorType == 'editor_challenge') fetch('/contentget?id=' + data.data.assocChallenge).then(response => response.json()).then(data => {
+            console.log(data)
+            contentDescriptionText.innerHTML = data.data.description
+        })
+        codeKeys.forEach(element => {
+            knowCode[element] = data.data[element]
+            editorCode[element] = data.data[element]
+        });
         document.querySelectorAll('.tabs div').forEach(element => {
             element.classList.remove('tab_clicked')
         });
         document.querySelector('.tabs .editor-tab_' + editorHas).classList.add('tab_clicked')
-        const tmp_args = data['data']['args_mutable']
+        const tmp_args = data.data.args_mutable
+        const tmp_readonly_args = data.data.args_immutable
         args = tmp_args
         knowArgs = tmp_args
         console.log(args)
         console.log(knowArgs)
-        genArgs(tmp_args)
+        if (editorType == 'editor_challenge') genArgs(tmp_args, tmp_readonly_args)
+        else genArgs(tmp_args)
         editor = monaco.editor.create(document.getElementById('monacoContainer'), {
             value: editorCode[editorHas],
             language: editorSettings[editorHas].language,
@@ -134,7 +152,7 @@
             editorCode[editorHas] = editor.getValue()
                 // console.log(JSON.stringify(args) != JSON.stringify(knowArgs))
             var codeBad = false;
-            if (editorCode.description != contentDescriptionText.innerHTML) contentDescriptionText.innerHTML = editorCode.description
+            if (editorCode.description != contentDescriptionText.innerHTML && editorType != 'editor_challenge') contentDescriptionText.innerHTML = editorCode.description
             codeKeys.forEach(element => {
                 if (editorCode[element] != knowCode[element]) codeBad = true;
             });
@@ -209,6 +227,16 @@
                     response['data']['outputs'].forEach(result => {
                         let argElement_resultText = document.querySelector('#arg_' + result.id + ' .resultOutput')
                         argElement_resultText.innerHTML = result.output
+                        let argElement_outputArrow = document.querySelector('#arg_' + result.id + ' .outputArrow')
+                        switch (result.type) {
+                            case 'Success':
+                                if (!result.match && editorType == 'editor_challenge') argElement_outputArrow.style.color = "#ff0"
+                                else argElement_outputArrow.style.color = "#0f0"
+                                break;
+                            case 'RuntimeError':
+                                argElement_outputArrow.style.color = "#f00"
+                                break;
+                        }
                     });
                     runbutton.innerHTML = "Tests Complete"
                     document.getElementById("compilerError").style.display = "none"
@@ -246,7 +274,8 @@
                 runbutton.classList.remove("fancybutton_half")
             });
     }
-    const ARG_TEMP = document.querySelector('#argslist template')
+    const ARG_TEMP = document.querySelector('#argslist .arg_temp')
+    const ARG_READONLY_TEMP = document.querySelector('#argslist .arg_readonly_temp')
     let argslist = document.querySelector('#argslist')
 
     function newarg() {
@@ -300,7 +329,14 @@
         })
     }
 
-    function genArgs(toGen) {
+    function genArgs(toGen, toGen_readonly = null) {
+        if (toGen_readonly) toGen_readonly.forEach(element => {
+            let newarg = ARG_READONLY_TEMP.cloneNode(true).content
+            let argid = element.id
+            newarg.querySelector('.arg_readonly').id = "arg_" + argid;
+            newarg.querySelector('.argText').innerHTML = element.arg
+            argslist.appendChild(newarg)
+        });
         toGen.forEach(element => {
             let newarg = ARG_TEMP.cloneNode(true).content
             let argid = element.id
@@ -315,7 +351,7 @@
 
     function updateArgsLocal() {
         var args_temp = new Array;
-        document.querySelectorAll('#argslist .arg').forEach(element => {
+        document.querySelectorAll('#argslist .arg_mutable').forEach(element => {
             var id = element.id;
             var arg = document.querySelector('#' + id + ' input').value
             args_temp.push({
