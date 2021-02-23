@@ -43,6 +43,7 @@ hashing = Hashing(app)
 moment = Moment(app)
 cors = CORS(app)
 app.secret_key = "blah blah blah"
+app.config["TEMPLATES_AUTO_RELOAD"] = True
 
 DEFAULT_CODE = """public int myMethod(int a) {
 	return a + 1;
@@ -220,7 +221,11 @@ def contentSet():
 	if contentBefore['type'] in ['challenge', 'editor_standalone']:
 		if 'title' in setRequest and owner:
 			towrite['title'] = setRequest['title']
-			towrite['modified'] = float(time.time())
+		if 'timeout' in setRequest and owner and type(setRequest['timeout']) == int:
+			towrite['timeout'] = setRequest['timeout']
+
+		towrite['modified'] = float(time.time())
+		
 	if not towrite:
 		if owner:
 			return warn_json("Did not write anything, maybe formatted wrong")
@@ -335,7 +340,7 @@ def runCode():
 	toRun = "myMethod"
 	if userContent['type'] == 'challenge':
 		toRun = "solution"
-	response = jrunnerClient.send_java(code, toRun, solutionMethod, args)
+	response = jrunnerClient.send_java(code, toRun, solutionMethod, args, timeout=userContent['timeout'])
 	print(response)
 	output = []
 	if response.overallResultType != reqres_pb2.Response.RunResultType.CompilerError:

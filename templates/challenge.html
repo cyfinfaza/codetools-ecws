@@ -7,6 +7,13 @@
         <button style="margin-top: 16px;" onclick="completeChangeTitle()">Change Title</button>
         <button class="hoverfancy" style="position: absolute; top: 16px; right: 16px; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;" onclick="closeModal('changeTitle')"><i class="material-icons" style="color: white;">close</i></button>
     </div>
+
+    <div id="changeConfiguration" class="modal" style="position: absolute;">
+        <h1 style="margin-top: 0;">Change Configuration</h1>
+        <input id="timeoutValue" name="timeout" onkeydown="if(event.keyCode == 13) {completeChangeConfiguration();}" type="text" style="width: 100%; box-sizing: border-box; height: 32px;" placeholder="Timeout">
+        <button style="margin-top: 16px;" onclick="completeChangeConfiguration()">Change Configuration</button>
+        <button class="hoverfancy" style="position: absolute; top: 16px; right: 16px; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;" onclick="closeModal('changeConfiguration')"><i class="material-icons" style="color: white;">close</i></button>
+    </div>
 </div>
 <div class="editor-main" onresize="editor.layout()">
     <div id="descriptionSidebar" class="sidebar">
@@ -67,7 +74,10 @@
                 </div>
             </template>
         </div>
-        <div style="display: flex; justify-content: center; width: 100%;"><button class="hoverfancy" onclick="newarg()" style="padding-right: 12px; margin-top: 12px;"><i class="material-icons">add</i> New Test</button></div>
+        <div style="display: flex; flex-direction: column; justify-content: center; width: 100%;">
+            <button class="hoverfancy" onclick="newarg()" style="padding-right: 12px; margin-top: 12px;"><i class="material-icons">add</i> New Test</button>
+            <button class="hoverfancy" onclick="startConfiguration()" style="padding-right: 12px; margin-top: 12px;"><i class="material-icons">settings</i> Configuration</button>
+        </div>
     </div>
 </div>
 <div id="uploadStatusDiv" class="uploadStatusDiv uploadStatusColored"><i id="uploadStatusIcon" class="material-icons" style="margin-right: 4px;">cloud_done</i><span id="uploadStatusText">Saved</span></div>
@@ -131,8 +141,12 @@
             console.log(data)
             contentDescriptionText.innerHTML = data.data.description
             document.getElementById('contentTitle').innerHTML = data['data']['title']
+            document.querySelector("#changeConfiguration > #timeoutValue").value = data['data']['timeout']
         })
-        else document.getElementById('contentTitle').innerHTML = data['data']['title']
+        else {
+            document.getElementById('contentTitle').innerHTML = data['data']['title']
+            document.querySelector("#changeConfiguration > #timeoutValue").value = data['data']['timeout']
+        }
         codeKeys.forEach(element => {
             knowCode[element] = data.data[element]
             editorCode[element] = data.data[element]
@@ -403,6 +417,11 @@
         input.focus()
     }
 
+    function startConfiguration() {
+        showModal('changeConfiguration')
+        input.focus()
+    }
+
     function completeChangeTitle() {
         let input = document.querySelector("#changeTitle input")
         topAlert("Changing title...")
@@ -421,6 +440,25 @@
                 response.json().then(data => console.log(data))
                 document.getElementById('contentTitle').innerHTML = input.value
                 topAlert("Title changed.")
+            })
+    }
+    function completeChangeConfiguration() {
+        let input = document.querySelector("#changeConfiguration > #timeoutValue")
+        topAlert("Changing configuration...")
+        closeModal("changeConfiguration")
+        fetch('/contentset', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    contentID: myContentID,
+                    timeout: parseInt(input.value)
+                }),
+            })
+            .then(response => {
+                response.json().then(data => console.log(data))
+                topAlert("Configuration changed.")
             })
     }
     var mainApp = document.querySelector(".editor-main")
