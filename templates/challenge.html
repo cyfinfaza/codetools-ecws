@@ -10,7 +10,10 @@
 
     <div id="changeConfiguration" class="modal" style="position: absolute;">
         <h1 style="margin-top: 0;">Change Configuration</h1>
-        <input id="timeoutValue" name="timeout" onkeydown="if(event.keyCode == 13) {completeChangeConfiguration();}" type="text" style="width: 100%; box-sizing: border-box; height: 32px;" placeholder="Timeout">
+        <div style="display: flex; flex-direction: row; align-items: center;">
+            <label style="margin-right: 10px;" for="timeout">Timeout: </label>
+            <input id="timeoutValue" name="timeout" onkeydown="if(event.keyCode == 13) {completeChangeConfiguration();}" type="text" style="width: 100%; box-sizing: border-box; height: 32px;" placeholder="Timeout">
+        </div>
         <button style="margin-top: 16px;" onclick="completeChangeConfiguration()">Change Configuration</button>
         <button class="hoverfancy" style="position: absolute; top: 16px; right: 16px; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;" onclick="closeModal('changeConfiguration')"><i class="material-icons" style="color: white;">close</i></button>
     </div>
@@ -148,7 +151,7 @@
         else {
             // user making challenge
             document.getElementById('contentTitle').innerHTML = data['data']['title']
-            document.querySelector("#changeConfiguration > #timeoutValue").value = data['data']['timeout']
+            document.querySelector("#changeConfiguration #timeoutValue").value = data['data']['timeout']
         }
         codeKeys.forEach(element => {
             knowCode[element] = data.data[element]
@@ -448,7 +451,7 @@
             })
     }
     function completeChangeConfiguration() {
-        let input = document.querySelector("#changeConfiguration > #timeoutValue")
+        let input = document.querySelector("#changeConfiguration #timeoutValue")
         topAlert("Changing configuration...")
         closeModal("changeConfiguration")
         fetch('/contentset', {
@@ -474,6 +477,7 @@
         modal.style.transform = 'scale(1)'
         modalContainer.style.pointerEvents = 'all'
         modal.style.opacity = '1'
+        modal.style.display = 'inline'
         mainApp.style.filter = 'contrast(0.5)'
         mainApp.style.pointerEvents = 'none'
     }
@@ -482,8 +486,9 @@
         var modal = document.getElementById(id)
         modal.style.transform = 'scale(0.8)'
         modalContainer.style.pointerEvents = 'none'
-        modal.style.opacity = '0'
+         modal.style.opacity = '0'
         mainApp.style.filter = 'none'
+        modal.style.display = 'none'
         mainApp.style.pointerEvents = 'all'
     }
 

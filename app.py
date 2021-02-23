@@ -343,6 +343,8 @@ def runCode():
 	toRun = "myMethod"
 	if userContent['type'] == 'challenge':
 		toRun = "solution"
+		timeout = userContent['timeout']
+
 	response = jrunnerClient.send_java(code, toRun, solutionMethod, args, timeout=timeout)
 	print(response)
 	output = []
