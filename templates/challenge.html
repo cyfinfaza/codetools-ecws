@@ -1,11 +1,19 @@
 {% extends "header.html" %} {% set hideEditorButton = True %} {% block content %}
 <link rel="stylesheet" href="static/editorstyle.css">
+<div class="modalContainer" style="position: fixed; width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; z-index: 100; pointer-events: none;">
+    <div id="changeTitle" class="modal" style="position: absolute;">
+        <h1 style="margin-top: 0;">Change Title</h1>
+        <input onkeydown="if(event.keyCode == 13) {completeChangeTitle();}" type="text" style="width: 100%; box-sizing: border-box; height: 32px;" placeholder="New title">
+        <button style="margin-top: 16px;" onclick="completeChangeTitle()">Change Title</button>
+        <button class="hoverfancy" style="position: absolute; top: 16px; right: 16px; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;" onclick="closeModal('changeTitle')"><i class="material-icons" style="color: white;">close</i></button>
+    </div>
+</div>
 <div class="editor-main" onresize="editor.layout()">
     <div id="descriptionSidebar" class="sidebar">
-        <h1 id="contentName" style="margin-bottom: 0;">Return the string "Hello World"</h1>
+        <h1 id="contentTitle" style="margin-bottom: 0;">Loading...</h1>
         {%if editorType != 'editor_challenge'%}
-        <button style="margin: 12px; margin-left: 0;" onclick="completeChangeTitle()">Change Title</button>{%endif%}
-        <p style="margin-top: 24px;" id="contentDescription">loading...</p>
+        <button style="margin: 12px; margin-left: 0;" onclick="startChangeTitle()">Change Title</button>{%endif%}
+        <p style="margin-top: 24px;" id="contentDescription">Loading...</p>
         <!-- <p id="contentDescription">This is a really hard challenge. It is unlikely you will be able to complete it. Use a <code>return</code> statment to return the string.</p> -->
     </div>
     <div class="threeCenter">
@@ -32,8 +40,12 @@
         <button id="runbutton" onclick="runcode()" class="fancybutton" style="width: 100%; margin: 0;" onmouseover="this.classList.remove('fancybutton_on', 'fancybutton_error', 'fancybutton_warn'); this.innerHTML='Run Tests'">Run Tests</button>
         <div id="compilerError" style="display: none; flex-direction: column; align-items: center; color: #F88;">
             <p style="display: flex; align-items: center; margin-bottom: 8px;"><i class="material-icons" style="margin-right: 8px;">warning</i> Compiler Error</p>
-            <p id="compilerErrorText" class="monofont" style="margin: 0; font-size: 12px; align-self: flex-start;">jsldkfj</p>
+            <p id="compilerErrorText" class="monofont" style="margin: 0; font-size: 12px; align-self: flex-start;">Error not displayed.</p>
         </div>
+        {%if editorType == 'editor_challenge'%}
+        <div id="challengeCompletedMessage" style="display: none; flex-direction: column; align-items: center; color: #8F8;">
+            <p style="display: flex; align-items: center; margin-bottom: 8px;"><i class="material-icons" style="margin-right: 8px;">check_circle</i> Challenge Completed</p>
+        </div>{%endif%}
         <div id="argslist" style="min-height: 24px;">
             <template class="arg_readonly_temp">
                 <div class="arg_readonly arg">
@@ -118,7 +130,9 @@
         if (editorType == 'editor_challenge') fetch('/contentget?id=' + data.data.assocChallenge).then(response => response.json()).then(data => {
             console.log(data)
             contentDescriptionText.innerHTML = data.data.description
+            document.getElementById('contentTitle').innerHTML = data['data']['title']
         })
+        else document.getElementById('contentTitle').innerHTML = data['data']['title']
         codeKeys.forEach(element => {
             knowCode[element] = data.data[element]
             editorCode[element] = data.data[element]
@@ -224,6 +238,7 @@
             .then(response => {
                 console.log(response);
                 if (response.data.run == 'success') {
+                    var matches = 0;
                     response['data']['outputs'].forEach(result => {
                         let argElement_resultText = document.querySelector('#arg_' + result.id + ' .resultOutput')
                         argElement_resultText.innerHTML = result.output
@@ -232,12 +247,15 @@
                             case 'Success':
                                 if (!result.match && editorType == 'editor_challenge') argElement_outputArrow.style.color = "#ff0"
                                 else argElement_outputArrow.style.color = "#0f0"
-                                break;
+                                if (result.match) matches++
+                                    break;
                             case 'RuntimeError':
                                 argElement_outputArrow.style.color = "#f00"
                                 break;
                         }
                     });
+                    if (matches == response.data.outputs.length) document.getElementById("challengeCompletedMessage").style.display = "flex";
+                    else document.getElementById("challengeCompletedMessage").style.display = "none";
                     runbutton.innerHTML = "Tests Complete"
                     document.getElementById("compilerError").style.display = "none"
                         // document.getElementById('resultOutput').innerHTML = response['result']
@@ -245,6 +263,7 @@
                     runbutton.classList.remove("fancybutton_half")
                 } else if (response.data.run == 'compilerError') {
                     runbutton.innerHTML = "Tests did not run"
+                    document.getElementById("challengeCompletedMessage").style.display = "none";
                     document.getElementById("compilerErrorText").innerHTML = response.data.error
                     document.getElementById("compilerError").style.display = "flex "
                     runbutton.classList.add("fancybutton_warn")
@@ -371,6 +390,54 @@
             element.classList.remove('tab_clicked')
         });
         document.querySelector('.tabs .editor-tab_' + changeTo).classList.add('tab_clicked')
+    }
+
+    function startChangeTitle() {
+        let input = document.querySelector("#changeTitle input")
+        input.value = document.getElementById('contentTitle').innerHTML;
+        showModal('changeTitle')
+        input.focus()
+    }
+
+    function completeChangeTitle() {
+        let input = document.querySelector("#changeTitle input")
+        topAlert("Changing title...")
+        closeModal('changeTitle')
+        fetch('/contentset', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    contentID: myContentID,
+                    title: input.value
+                }),
+            })
+            .then(response => {
+                response.json().then(data => console.log(data))
+                document.getElementById('contentTitle').innerHTML = input.value
+                topAlert("Title changed.")
+            })
+    }
+    var mainApp = document.querySelector(".editor-main")
+    var modalContainer = document.querySelector(".modalContainer")
+
+    function showModal(id) {
+        var modal = document.getElementById(id)
+        modal.style.transform = 'scale(1)'
+        modalContainer.style.pointerEvents = 'all'
+        modal.style.opacity = '1'
+        mainApp.style.filter = 'contrast(0.5)'
+        mainApp.style.pointerEvents = 'none'
+    }
+
+    function closeModal(id) {
+        var modal = document.getElementById(id)
+        modal.style.transform = 'scale(0.8)'
+        modalContainer.style.pointerEvents = 'none'
+        modal.style.opacity = '0'
+        mainApp.style.filter = 'none'
+        mainApp.style.pointerEvents = 'all'
     }
 
     function makeid(length) {

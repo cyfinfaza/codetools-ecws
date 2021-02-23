@@ -129,6 +129,17 @@
         margin: 0;
     }
     
+    #header {
+        background-color: black;
+    }
+    
+    @supports (backdrop-filter: saturate(180%) blur(20px)) {
+        #header {
+            background-color: #00000088;
+            backdrop-filter: saturate(180%) blur(20px);
+        }
+    }
+    
     .big {
         font-size: 96px;
     }
@@ -219,7 +230,7 @@
     <div style="position: fixed; display: flex; width: 100%; justify-content: center; z-index: 200;">
         <div id="alertMessage" class="invertAdaptBackground">Alert</div>
     </div>
-    <div id="header" style="position: fixed; top: 0; width: 100%; height: 84px; display: flex; align-items: center; z-index: 50; justify-content: center; background-color: #00000088; backdrop-filter: saturate(180%) blur(20px);">
+    <div id="header" style="position: fixed; top: 0; width: 100%; height: 84px; display: flex; align-items: center; z-index: 50; justify-content: center;">
         <div style="display: flex; flex: 1; align-items: center;">
             <img src="../static/CodeToolsLogo.svg" class="hoverfancy" style="height: 64px; margin-left: 10px; justify-self: center; cursor: pointer;" alt="" onclick="window.location='/'">
             <h1 class="nomobile" style="margin-left: 16px; cursor: pointer; z-index: 5;" onclick="window.location='/'">{{appname}}</h1>

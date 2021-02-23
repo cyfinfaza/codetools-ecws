@@ -23,10 +23,10 @@
         var message = elem.innerHTML
         elem.innerHTML = ""
         var pos = 0
-        setInterval(() => {
+        var drawInterval = setInterval(() => {
             elem.innerHTML = message.substring(0, ++pos) + "|"
             if (pos >= message.length) {
-                clearInterval();
+                clearInterval(drawInterval);
                 elem.innerHTML = message
             }
         }, time);

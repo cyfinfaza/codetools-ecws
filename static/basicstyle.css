@@ -99,6 +99,10 @@ button {
     justify-content: center;
 }
 
+p>button {
+    display: inline-flex;
+}
+
 #alertMessage {
     position: fixed;
     top: 16px;

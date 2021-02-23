@@ -144,10 +144,10 @@
         padding-bottom: 2px;
         padding-right: 6px;
         padding-left: 6px;
-        border-radius: 4px;
+        border-radius: 6px;
         margin-right: 4px;
         margin-left: 4px;
-        background-color: #333;
+        background-color: #222;
         font-size: 13px;
     }
     
@@ -317,6 +317,10 @@
     
     #argslist .arg {
         animation: dropin 0.15s ease backwards;
+    }
+    
+    #contentDescription {
+        line-height: 150%;
     }
     
     @keyframes dropin {
