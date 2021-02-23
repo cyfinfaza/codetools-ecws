@@ -21,6 +21,7 @@ from os import environ
 
 load_dotenv()
 RECAPTCHA_SECRET = environ.get('RECAPTCHA_SECRET')
+RECAPTCHA_SITEKEY = environ.get('RECAPTCHA_SITEKEY')
 MONGODB_CONNECTION_STRING = environ.get('MONGODB_CONNECTION_STRING')
 
 jrunnerClient = JRunner5Client("127.0.0.1", 5791)
@@ -130,6 +131,7 @@ def astimedelta(duration):
 @app.template_filter('appname')
 def appname():
 	return APP_NAME
+
 
 # @app.route('/selfcrash')
 # def selfCrash():
@@ -434,7 +436,7 @@ def signout():
 @app.route("/signup", methods=['GET', 'POST'])
 def signup():
 	if request.method == 'GET':
-		return render_template("signup.html")
+		return render_template("signup.html", sitekey=RECAPTCHA_SITEKEY)
 	if request.method == 'POST':
 		# print(request.form)
 		recaptcha_reponse = json.loads(requests.post('https://www.google.com/recaptcha/api/siteverify', {
@@ -457,11 +459,11 @@ def signup():
 						'sessions': []
 					})
 				else:
-					return render_template("signup.html", nowuser=request.form['username'], nowname=request.form['actualname'], nowpass=request.form['password'], nowerrors="User already exists. Try signing in.")
+					return render_template("signup.html", nowuser=request.form['username'], nowname=request.form['actualname'], nowpass=request.form['password'], nowerrors="User already exists. Try signing in.", sitekey=RECAPTCHA_SITEKEY)
 			else:
-				return render_template("signup.html", nowuser=request.form['username'], nowname=request.form['actualname'], nowpass=request.form['password'], nowerrors="Minimum length: Username: 3 characters; Password: 8 characters")
+				return render_template("signup.html", nowuser=request.form['username'], nowname=request.form['actualname'], nowpass=request.form['password'], nowerrors="Minimum length: Username: 3 characters; Password: 8 characters", sitekey=RECAPTCHA_SITEKEY)
 		else:
-			return render_template("signup.html", nowuser=request.form['username'], nowname=request.form['actualname'], nowpass=request.form['password'], nowerrors="ReCaptcha verification error occurred. Ensure you are not a robot.")
+			return render_template("signup.html", nowuser=request.form['username'], nowname=request.form['actualname'], nowpass=request.form['password'], nowerrors="ReCaptcha verification error occurred. Ensure you are not a robot.", sitekey=RECAPTCHA_SITEKEY)
 		return render_template('messageandredirect.html', messageTitle="Account created.", redirectDescription="You will now be redirected to sign in to your new account.", countdownFrom="5", redirectTo="/signin")
 
 

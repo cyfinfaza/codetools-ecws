@@ -252,6 +252,10 @@
                             case 'RuntimeError':
                                 argElement_outputArrow.style.color = "#f00"
                                 break;
+                            case 'TimeoutError':
+                                argElement_outputArrow.style.color = "#f00"
+                                argElement_resultText.innerHTML = "Timed out"
+                                break;
                         }
                     });
                     if (matches == response.data.outputs.length) document.getElementById("challengeCompletedMessage").style.display = "flex";
