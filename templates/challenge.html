@@ -7,6 +7,16 @@
         <button style="margin-top: 16px;" onclick="completeChangeTitle()">Change Title</button>
         <button class="hoverfancy" style="position: absolute; top: 16px; right: 16px; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;" onclick="closeModal('changeTitle')"><i class="material-icons" style="color: white;">close</i></button>
     </div>
+
+    <div id="changeConfiguration" class="modal" style="position: absolute;">
+        <h1 style="margin-top: 0;">Change Configuration</h1>
+        <div style="display: flex; flex-direction: row; align-items: center;">
+            <label style="margin-right: 10px;" for="timeout">Timeout: </label>
+            <input id="timeoutValue" name="timeout" onkeydown="if(event.keyCode == 13) {completeChangeConfiguration();}" type="text" style="width: 100%; box-sizing: border-box; height: 32px;" placeholder="Timeout">
+        </div>
+        <button style="margin-top: 16px;" onclick="completeChangeConfiguration()">Change Configuration</button>
+        <button class="hoverfancy" style="position: absolute; top: 16px; right: 16px; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;" onclick="closeModal('changeConfiguration')"><i class="material-icons" style="color: white;">close</i></button>
+    </div>
 </div>
 <div class="editor-main" onresize="editor.layout()">
     <div id="descriptionSidebar" class="sidebar">
@@ -67,7 +77,10 @@
                 </div>
             </template>
         </div>
-        <div style="display: flex; justify-content: center; width: 100%;"><button class="hoverfancy" onclick="newarg()" style="padding-right: 12px; margin-top: 12px;"><i class="material-icons">add</i> New Test</button></div>
+        <div style="display: flex; flex-direction: column; justify-content: center; width: 100%;">
+            <button class="hoverfancy" onclick="newarg()" style="padding-right: 12px; margin-top: 12px;"><i class="material-icons">add</i> New Test</button>
+            <button id="setConfiguration" class="hoverfancy" onclick="startConfiguration()" style="padding-right: 12px; margin-top: 12px;"><i class="material-icons">settings</i> Configuration</button>
+        </div>
     </div>
 </div>
 <div id="uploadStatusDiv" class="uploadStatusDiv uploadStatusColored"><i id="uploadStatusIcon" class="material-icons" style="margin-right: 4px;">cloud_done</i><span id="uploadStatusText">Saved</span></div>
@@ -128,11 +141,18 @@
     fetch('/contentget?id=' + myContentID).then(response => response.json()).then(data => require(["vs/editor/editor.main"], function() {
         console.log(data)
         if (editorType == 'editor_challenge') fetch('/contentget?id=' + data.data.assocChallenge).then(response => response.json()).then(data => {
+            // User doing challenge
+
             console.log(data)
             contentDescriptionText.innerHTML = data.data.description
             document.getElementById('contentTitle').innerHTML = data['data']['title']
+            document.querySelector("#setConfiguration").style.display = "none"
         })
-        else document.getElementById('contentTitle').innerHTML = data['data']['title']
+        else {
+            // user making challenge
+            document.getElementById('contentTitle').innerHTML = data['data']['title']
+            document.querySelector("#changeConfiguration #timeoutValue").value = data['data']['timeout']
+        }
         codeKeys.forEach(element => {
             knowCode[element] = data.data[element]
             editorCode[element] = data.data[element]
@@ -252,10 +272,16 @@
                             case 'RuntimeError':
                                 argElement_outputArrow.style.color = "#f00"
                                 break;
+                            case 'TimeoutError':
+                                argElement_outputArrow.style.color = "#f00"
+                                argElement_resultText.innerHTML = "Timed out"
+                                break;
                         }
                     });
-                    if (matches == response.data.outputs.length) document.getElementById("challengeCompletedMessage").style.display = "flex";
-                    else document.getElementById("challengeCompletedMessage").style.display = "none";
+                    if (editorType == "editor_challenge") {
+                        if (matches == response.data.outputs.length) document.getElementById("challengeCompletedMessage").style.display = "flex";
+                        else document.getElementById("challengeCompletedMessage").style.display = "none";
+                    }
                     runbutton.innerHTML = "Tests Complete"
                     document.getElementById("compilerError").style.display = "none"
                         // document.getElementById('resultOutput').innerHTML = response['result']
@@ -263,7 +289,10 @@
                     runbutton.classList.remove("fancybutton_half")
                 } else if (response.data.run == 'compilerError') {
                     runbutton.innerHTML = "Tests did not run"
-                    document.getElementById("challengeCompletedMessage").style.display = "none";
+                    if (editorType == "editor_challenge") {
+                        if (matches == response.data.outputs.length) document.getElementById("challengeCompletedMessage").style.display = "flex";
+                        else document.getElementById("challengeCompletedMessage").style.display = "none";
+                    }
                     document.getElementById("compilerErrorText").innerHTML = response.data.error
                     document.getElementById("compilerError").style.display = "flex "
                     runbutton.classList.add("fancybutton_warn")
@@ -399,6 +428,11 @@
         input.focus()
     }
 
+    function startConfiguration() {
+        showModal('changeConfiguration')
+        input.focus()
+    }
+
     function completeChangeTitle() {
         let input = document.querySelector("#changeTitle input")
         topAlert("Changing title...")
@@ -419,6 +453,25 @@
                 topAlert("Title changed.")
             })
     }
+    function completeChangeConfiguration() {
+        let input = document.querySelector("#changeConfiguration #timeoutValue")
+        topAlert("Changing configuration...")
+        closeModal("changeConfiguration")
+        fetch('/contentset', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    contentID: myContentID,
+                    timeout: parseInt(input.value)
+                }),
+            })
+            .then(response => {
+                response.json().then(data => console.log(data))
+                topAlert("Configuration changed.")
+            })
+    }
     var mainApp = document.querySelector(".editor-main")
     var modalContainer = document.querySelector(".modalContainer")
 
@@ -427,6 +480,7 @@
         modal.style.transform = 'scale(1)'
         modalContainer.style.pointerEvents = 'all'
         modal.style.opacity = '1'
+        modal.style.display = 'inline'
         mainApp.style.filter = 'contrast(0.5)'
         mainApp.style.pointerEvents = 'none'
     }
@@ -435,8 +489,9 @@
         var modal = document.getElementById(id)
         modal.style.transform = 'scale(0.8)'
         modalContainer.style.pointerEvents = 'none'
-        modal.style.opacity = '0'
+         modal.style.opacity = '0'
         mainApp.style.filter = 'none'
+        modal.style.display = 'none'
         mainApp.style.pointerEvents = 'all'
     }
 

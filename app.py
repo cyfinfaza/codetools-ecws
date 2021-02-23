@@ -21,6 +21,7 @@ from os import environ
 
 load_dotenv()
 RECAPTCHA_SECRET = environ.get('RECAPTCHA_SECRET')
+RECAPTCHA_SITEKEY = environ.get('RECAPTCHA_SITEKEY')
 MONGODB_CONNECTION_STRING = environ.get('MONGODB_CONNECTION_STRING')
 
 jrunnerClient = JRunner5Client("127.0.0.1", 5791)
@@ -42,6 +43,7 @@ hashing = Hashing(app)
 moment = Moment(app)
 cors = CORS(app)
 app.secret_key = "blah blah blah"
+app.config["TEMPLATES_AUTO_RELOAD"] = True
 
 DEFAULT_CODE = """public int myMethod(int a) {
 	return a + 1;
@@ -131,6 +133,7 @@ def astimedelta(duration):
 def appname():
 	return APP_NAME
 
+
 # @app.route('/selfcrash')
 # def selfCrash():
 # 	return str(0/0)
@@ -218,7 +221,11 @@ def contentSet():
 	if contentBefore['type'] in ['challenge', 'editor_standalone']:
 		if 'title' in setRequest and owner:
 			towrite['title'] = setRequest['title']
-			towrite['modified'] = float(time.time())
+		if 'timeout' in setRequest and owner and type(setRequest['timeout']) == int:
+			towrite['timeout'] = setRequest['timeout']
+
+		towrite['modified'] = float(time.time())
+		
 	if not towrite:
 		if owner:
 			return warn_json("Did not write anything, maybe formatted wrong")
@@ -328,12 +335,17 @@ def runCode():
 	code = userContent['code']
 	print(code)
 	solutionMethod = DEFAULT_SOLUTION
+	timeout = 15
 	if userContent['type'] == 'editor_challenge':
-		solutionMethod = content.find_one({'_id':userContent['assocChallenge']})['code']
+		assocChallenge = content.find_one({'_id':userContent['assocChallenge']})
+		solutionMethod = assocChallenge['code']
+		timeout = assocChallenge['timeout']
 	toRun = "myMethod"
 	if userContent['type'] == 'challenge':
 		toRun = "solution"
-	response = jrunnerClient.send_java(code, toRun, solutionMethod, args)
+		timeout = userContent['timeout']
+
+	response = jrunnerClient.send_java(code, toRun, solutionMethod, args, timeout=timeout)
 	print(response)
 	output = []
 	if response.overallResultType != reqres_pb2.Response.RunResultType.CompilerError:
@@ -434,7 +446,7 @@ def signout():
 @app.route("/signup", methods=['GET', 'POST'])
 def signup():
 	if request.method == 'GET':
-		return render_template("signup.html")
+		return render_template("signup.html", sitekey=RECAPTCHA_SITEKEY)
 	if request.method == 'POST':
 		# print(request.form)
 		recaptcha_reponse = json.loads(requests.post('https://www.google.com/recaptcha/api/siteverify', {
@@ -457,11 +469,11 @@ def signup():
 						'sessions': []
 					})
 				else:
-					return render_template("signup.html", nowuser=request.form['username'], nowname=request.form['actualname'], nowpass=request.form['password'], nowerrors="User already exists. Try signing in.")
+					return render_template("signup.html", nowuser=request.form['username'], nowname=request.form['actualname'], nowpass=request.form['password'], nowerrors="User already exists. Try signing in.", sitekey=RECAPTCHA_SITEKEY)
 			else:
-				return render_template("signup.html", nowuser=request.form['username'], nowname=request.form['actualname'], nowpass=request.form['password'], nowerrors="Minimum length: Username: 3 characters; Password: 8 characters")
+				return render_template("signup.html", nowuser=request.form['username'], nowname=request.form['actualname'], nowpass=request.form['password'], nowerrors="Minimum length: Username: 3 characters; Password: 8 characters", sitekey=RECAPTCHA_SITEKEY)
 		else:
-			return render_template("signup.html", nowuser=request.form['username'], nowname=request.form['actualname'], nowpass=request.form['password'], nowerrors="ReCaptcha verification error occurred. Ensure you are not a robot.")
+			return render_template("signup.html", nowuser=request.form['username'], nowname=request.form['actualname'], nowpass=request.form['password'], nowerrors="ReCaptcha verification error occurred. Ensure you are not a robot.", sitekey=RECAPTCHA_SITEKEY)
 		return render_template('messageandredirect.html', messageTitle="Account created.", redirectDescription="You will now be redirected to sign in to your new account.", countdownFrom="5", redirectTo="/signin")
 
 
