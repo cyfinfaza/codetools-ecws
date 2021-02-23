@@ -335,12 +335,15 @@ def runCode():
 	code = userContent['code']
 	print(code)
 	solutionMethod = DEFAULT_SOLUTION
+	timeout = 15
 	if userContent['type'] == 'editor_challenge':
-		solutionMethod = content.find_one({'_id':userContent['assocChallenge']})['code']
+		assocChallenge = content.find_one({'_id':userContent['assocChallenge']})
+		solutionMethod = assocChallenge['code']
+		timeout = assocChallenge['timeout']
 	toRun = "myMethod"
 	if userContent['type'] == 'challenge':
 		toRun = "solution"
-	response = jrunnerClient.send_java(code, toRun, solutionMethod, args, timeout=userContent['timeout'])
+	response = jrunnerClient.send_java(code, toRun, solutionMethod, args, timeout=timeout)
 	print(response)
 	output = []
 	if response.overallResultType != reqres_pb2.Response.RunResultType.CompilerError:
