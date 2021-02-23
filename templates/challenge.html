@@ -289,7 +289,10 @@
                     runbutton.classList.remove("fancybutton_half")
                 } else if (response.data.run == 'compilerError') {
                     runbutton.innerHTML = "Tests did not run"
-                    document.getElementById("challengeCompletedMessage").style.display = "none";
+                    if (editorType == "editor_challenge") {
+                        if (matches == response.data.outputs.length) document.getElementById("challengeCompletedMessage").style.display = "flex";
+                        else document.getElementById("challengeCompletedMessage").style.display = "none";
+                    }
                     document.getElementById("compilerErrorText").innerHTML = response.data.error
                     document.getElementById("compilerError").style.display = "flex "
                     runbutton.classList.add("fancybutton_warn")
