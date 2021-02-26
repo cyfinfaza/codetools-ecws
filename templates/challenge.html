@@ -9,7 +9,7 @@
     </div>
 
     <div id="changeConfiguration" class="modal" style="position: absolute;">
-        <h1 style="margin-top: 0;">Change Configuration</h1>
+        <h1 style="margin-top: 0;">Edit Config</h1>
         <div style="display: flex; flex-direction: row; align-items: center;">
             <label style="margin-right: 10px;" for="timeout">Timeout: </label>
             <input id="timeoutValue" name="timeout" onkeydown="if(event.keyCode == 13) {completeChangeConfiguration();}" type="text" style="width: 100%; box-sizing: border-box; height: 32px;" placeholder="Timeout">
@@ -48,6 +48,8 @@
     <div id="argsSidebar" class="sidebar">
         <h1>{%if editorType == 'challenge'%}Prepare Tests{%else%}Run and Test{%endif%}</h1>
         <button id="runbutton" onclick="runcode()" class="fancybutton" style="width: 100%; margin: 0;" onmouseover="this.classList.remove('fancybutton_on', 'fancybutton_error', 'fancybutton_warn'); this.innerHTML='Run Tests'">Run Tests</button>
+        <!-- <div style="display: flex; flex-direction: column; align-items: center; width: 100%;">
+        </div> -->
         <div id="compilerError" style="display: none; flex-direction: column; align-items: center; color: #F88;">
             <p style="display: flex; align-items: center; margin-bottom: 8px;"><i class="material-icons" style="margin-right: 8px;">warning</i> Compiler Error</p>
             <p id="compilerErrorText" class="monofont" style="margin: 0; font-size: 12px; align-self: flex-start;">Error not displayed.</p>
@@ -77,9 +79,9 @@
                 </div>
             </template>
         </div>
-        <div style="display: flex; flex-direction: column; justify-content: center; width: 100%;">
-            <button class="hoverfancy" onclick="newarg()" style="padding-right: 12px; margin-top: 12px;"><i class="material-icons">add</i> New Test</button>
-            <button id="setConfiguration" class="hoverfancy" onclick="startConfiguration()" style="padding-right: 12px; margin-top: 12px;"><i class="material-icons">settings</i> Configuration</button>
+        <div style="display: flex; flex-direction: column; align-items: center; width: 100%;">
+            <button class="hoverfancy" onclick="newarg()" style="padding-right: 12px; margin-top: 12px;"><i class="material-icons">add</i> New Test</button> {%if editorType != 'editor_challenge'%}
+            <button id="setConfiguration" class="hoverfancy" onclick="startConfiguration()" style="padding-right: 10px; margin-top: 12px;"><i class="material-icons" style="margin-right: 4px; font-size: 24px;">tune</i> Config</button> {%endif%}
         </div>
     </div>
 </div>
@@ -142,14 +144,12 @@
         console.log(data)
         if (editorType == 'editor_challenge') fetch('/contentget?id=' + data.data.assocChallenge).then(response => response.json()).then(data => {
             // User doing challenge
-
             console.log(data)
             contentDescriptionText.innerHTML = data.data.description
             document.getElementById('contentTitle').innerHTML = data['data']['title']
-            document.querySelector("#setConfiguration").style.display = "none"
         })
         else {
-            // user making challenge
+            // User-owned content
             document.getElementById('contentTitle').innerHTML = data['data']['title']
             document.querySelector("#changeConfiguration #timeoutValue").value = data['data']['timeout']
         }
@@ -453,6 +453,7 @@
                 topAlert("Title changed.")
             })
     }
+
     function completeChangeConfiguration() {
         let input = document.querySelector("#changeConfiguration #timeoutValue")
         topAlert("Changing configuration...")
@@ -478,9 +479,9 @@
     function showModal(id) {
         var modal = document.getElementById(id)
         modal.style.transform = 'scale(1)'
-        modalContainer.style.pointerEvents = 'all'
+        modal.style.pointerEvents = 'all'
         modal.style.opacity = '1'
-        modal.style.display = 'inline'
+            // modal.style.display = 'inline'
         mainApp.style.filter = 'contrast(0.5)'
         mainApp.style.pointerEvents = 'none'
     }
@@ -488,10 +489,10 @@
     function closeModal(id) {
         var modal = document.getElementById(id)
         modal.style.transform = 'scale(0.8)'
-        modalContainer.style.pointerEvents = 'none'
-         modal.style.opacity = '0'
+        modal.style.pointerEvents = 'none'
+        modal.style.opacity = '0'
         mainApp.style.filter = 'none'
-        modal.style.display = 'none'
+            // modal.style.display = 'none'
         mainApp.style.pointerEvents = 'all'
     }
 

@@ -33,10 +33,6 @@ db = client['codetools']
 users = db['users']
 codes = db['codes']
 content = db['content']
-# groups = db['groups']
-# messages = db['messages']
-# shares = db['shares']
-# players = db['players']
 
 app = Flask(__name__)
 hashing = Hashing(app)
@@ -339,11 +335,13 @@ def runCode():
 	if userContent['type'] == 'editor_challenge':
 		assocChallenge = content.find_one({'_id':userContent['assocChallenge']})
 		solutionMethod = assocChallenge['code']
-		timeout = assocChallenge['timeout']
+		if 'timeout' in assocChallenge: 
+			timeout = assocChallenge['timeout']
 	toRun = "myMethod"
 	if userContent['type'] == 'challenge':
 		toRun = "solution"
-		timeout = userContent['timeout']
+		if 'timeout' in userContent:
+			timeout = userContent['timeout']
 
 	response = jrunnerClient.send_java(code, toRun, solutionMethod, args, timeout=timeout)
 	print(response)
@@ -621,4 +619,4 @@ def getContent(linkID):
 		return redirect('/signin')
 
 if __name__ == "__main__":
-	app.run(host="0.0.0.0", port=5000, debug=True, threaded=True)
+	app.run(host="0.0.0.0", port=5000, debug=True, threaded=False)
