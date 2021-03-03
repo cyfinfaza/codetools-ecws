@@ -78,10 +78,11 @@ function App({ editorType, contentID }) {
         setInterval(checkAndSave, 5000);
         setOpenModal(null);
         setOpenCodeKey("code");
-      });
-    // .catch(()=>{
-    //   setOpenModal('fatalError')
-    // })
+      })
+    .catch((e)=>{
+      console.error(e)
+      setOpenModal('fatalError')
+    })
   }, []);
   useEffect(() => {
     let args_mutable = args.map((arg) => {
@@ -148,7 +149,7 @@ function App({ editorType, contentID }) {
                 height: "32px",
               }}
               value={metadata.title ? metadata.title : ""}
-              onChange={(e) => setMetadata({...metadata, title: e.target.value })}
+              onChange={(e) => setMetadata({ ...metadata, title: e.target.value })}
               placeholder="New title"
             />
           </Modal>
@@ -180,8 +181,7 @@ function App({ editorType, contentID }) {
                 }}
                 placeholder="Timeout"
               /> */}
-              <select value={metadata.timeout ? metadata.timeout : 5}
-              onChange={(e) => setMetadata({...metadata, timeout: parseInt(e.target.value) })}>
+              <select value={metadata.timeout ? metadata.timeout : 5} onChange={(e) => setMetadata({ ...metadata, timeout: parseInt(e.target.value) })}>
                 {(() => {
                   var output = [];
                   for (var i = 1; i <= 15; i++) {
@@ -356,12 +356,7 @@ function App({ editorType, contentID }) {
                 <i className="material-icons">add</i> New Test
               </button>
               {editorType != "editor_challenge" && (
-                <button
-                  id="setConfiguration"
-                  className="hoverfancy"
-                  onClick={() => setOpenModal("editConfig")}
-                  style={{ paddingRight: "10px", marginTop: "12px" }}
-                >
+                <button id="setConfiguration" className="hoverfancy" onClick={() => setOpenModal("editConfig")} style={{ paddingRight: "10px", marginTop: "12px" }}>
                   <i className="material-icons" style={{ marginRight: "4px", fontSize: "24px" }}>
                     tune
                   </i>
