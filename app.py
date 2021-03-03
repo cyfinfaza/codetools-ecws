@@ -18,11 +18,14 @@ import json
 from jrunner5.python.jrunner5 import JRunner5Client, reqres_pb2
 from dotenv import load_dotenv
 from os import environ
+from keyMakeSignCheck.KeyManagement import Signee
 
 load_dotenv()
 RECAPTCHA_SECRET = environ.get('RECAPTCHA_SECRET')
 RECAPTCHA_SITEKEY = environ.get('RECAPTCHA_SITEKEY')
 MONGODB_CONNECTION_STRING = environ.get('MONGODB_CONNECTION_STRING')
+
+signee = Signee(open('keys.json', 'r'))
 
 jrunnerClient = JRunner5Client("127.0.0.1", 5791)
 
@@ -179,6 +182,7 @@ def getCode():
 
 @app.route('/contentset', methods=['POST'])
 def contentSet():
+	print(request.json)
 	try:
 		setRequest = request.json
 	except:
@@ -244,6 +248,8 @@ def contentGet():
 		return error_json("Invalid session")
 	userData = users.find_one({'username':session['username']})
 	owner =  userContent['owner'] == userData['_id']
+	signature = signee.sign(userContent['_id'])
+	userContent['id_sig'] = signature
 	if userContent['type'] == 'challenge' and not owner:
 		ALLOWED_CHALLENGE_FIELDS = ['_id', 'title', 'description', 'owner', 'modified']
 		return success_json({key:userContent[key] for key in userContent if key in ALLOWED_CHALLENGE_FIELDS})

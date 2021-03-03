@@ -10,18 +10,22 @@ import concurrent.futures
 from dotenv import load_dotenv
 from os import environ
 import pymongo
+from websockets.server import WebSocketServerProtocol
 from bcolors import bcolors
+from keyMakeSignCheck.KeyManagement import Signee
+import time
+import requests
 
 # Configuration
-EMPLOYEE_PATH = '/runner'
-CUSTOMER_PATH = '/runcode'
-EXECUTOR_MAX_WORKERS = 25
+EMPLOYEE_PATH = '/ecws/runner'
+CUSTOMER_PATH = '/ecws/runcode'
+EXECUTOR_MAX_WORKERS = 5
 
 class EC_ConnectionGroup:
 	EMPLOYEE = 0
 	CUSTOMER = 1
 	class Connection:
-		def __init__(self, connectionType, websocket):
+		def __init__(self, connectionType, websocket:WebSocketServerProtocol):
 			self.type = connectionType
 			self.ws = websocket
 	def __init__(self):
@@ -76,19 +80,17 @@ class EC_JobManager:
 	def complete(self, jobToRemove:Job):
 		self.jobs.remove(jobToRemove)
 
-def initiateJob(job:EC_JobManager.Job):
-	# Query the database, get the job, set the requires pre-completion action flag
-	# Send the job to the employee
-	pass
-
-def completeJob(job:EC_JobManager.Job, employeeResponse):
-	# Verify the requires pre-completion action flag, potentially write to the database
-	# Send the response to the customer
-	pass
+class WS_SendObject:
+	def __init__(self, ws:WebSocketServerProtocol, message:str):
+		self.ws = ws
+		self.message = message
 
 # Load IP Allow List
 allowedIPs = list(line.strip() for line in open("managementWS_allowedIPs.txt", "r").readlines())
 print(f'Allwed IPs: {allowedIPs}')
+
+# Load authenticity checker signee
+signee = Signee(open('keys.json', 'r'))
 
 # Load MongoDB
 load_dotenv()
@@ -105,6 +107,48 @@ jobManager = EC_JobManager(connectionGroup)
 
 # Set up thread pool executor (to avoid locking the asyncio thread / main thread with DB queries)
 executor = concurrent.futures.ThreadPoolExecutor(max_workers=EXECUTOR_MAX_WORKERS)
+
+# Responses
+def json_statusUpdate(message):
+	return json.dumps({'type':'statusUpdate', 'status':message})
+def json_error(message):
+	return json.dumps({'type':'error', 'error':message})
+
+# Allow sending outside main event loop
+loop = asyncio.get_event_loop()
+sendQueue = asyncio.Queue()
+async def asyncSendWorker(queue=sendQueue):
+	while True:
+		try:
+			tosend = await queue.get()
+			print("something is happening")
+			await tosend[0].send(tosend[1])
+			queue.task_done()
+		except:
+			await asyncio.sleep(1)
+		# print("heartbeat")
+		# await asyncio.sleep(1)
+
+async def send(ws:WebSocketServerProtocol, message:str):
+	print("the new thing happened")
+	await ws.send(message)
+
+def initiateJob(job:EC_JobManager.Job):
+	# Query the database, get the job, set the requires pre-completion action flag
+	# Send the job to the employee
+	# sendQueue.put_nowait((job.customer.ws, json_statusUpdate("jobInitiating")))
+	print('job initiating')
+	# asyncio.run_coroutine_threadsafe(job.customer.ws.send("something, anytihng"), loop)
+	# requests.get('https://google.com/')
+	time.sleep(10)
+	# sendQueue.put_nowait((job.customer.ws, json_statusUpdate("jobSubmitted")))
+	print('job submitted')
+	pass
+
+def completeJob(job:EC_JobManager.Job, employeeResponse):
+	# Verify the requires pre-completion action flag, potentially write to the database
+	# Send the response to the customer
+	pass
 
 # Override process_request to perform validation
 async def initial(path, request_headers):
@@ -131,34 +175,48 @@ async def server(websocket, path):
 	connection = EC_ConnectionGroup.Connection(CONNECTION_TYPE, websocket)
 	connectionGroup.add(connection)
 	print("ADD INDIVIDUAL "+str(id(websocket)))
-	# for conn in connectionGroup.allWS():
-	# 	await conn.send(json.dumps({'type': 'rxGroupUpdate', 'viewers':len(connected)}))
 	try:
-		# print(f'Connected users: {len(connected)}')
-		async for message in websocket:
-			print(str(message))
-			# with open(make_umid(), 'wb') as file:
-			# 	file.write(message)
-			# ((await ws.send(message)) for ws in connected)
-			# (await ws.send(message) for ws in connected if ws != websocket)
-			for conn in (conn for conn in connectionGroup.allWS() if conn != websocket):
-				await conn.send(message)
-			# await conn.send("recieved")
+		if connection.type == EC_ConnectionGroup.CUSTOMER:
+			async for message in websocket:
+				await websocket.send(json_statusUpdate("requestRecieved"))
+				messageContent = str(message)
+				try:
+					runRequest = json.loads(messageContent)
+				except:
+					await websocket.send(json_error("jsonDecodeError"))
+					continue
+				if not all(key in runRequest for key in ['contentID', 'id_sig']):
+					await websocket.send(json_error("missingKeyError"))
+					continue
+				if not signee.verify(runRequest['contentID'], runRequest['id_sig']):
+					await websocket.send(json_error("fraudError"))
+					continue
+				runJob = EC_JobManager.Job(connection, {'id':runRequest['contentID']})
+				# executor.submit(initiateJob, runJob)
+				await websocket.send(json_statusUpdate("jobQueued, started"))
+				await loop.run_in_executor(executor, initiateJob, runJob)
+				await websocket.send(json_statusUpdate("jobInitiated"))
+				print(str(message))
+				# for conn in (conn for conn in connectionGroup.allWS() if conn != websocket):
+				# 	await conn.send(message)
+		elif connection.type == EC_ConnectionGroup.EMPLOYEE:
+			async for message in websocket:
+				print(str(message))
+				for conn in (conn for conn in connectionGroup.allWS() if conn != websocket):
+					await conn.send(message)
 		print("END INDIVIDUAL LOGIC LOOP "+str(id(websocket)))
 	except Exception as e:
 		print(f"Exception {e}")
 	finally:
 		print("DELETE INDIVIDUAL "+str(id(websocket)))
 		connectionGroup.remove(connection)
-		# print(f'Connected users: {len(connected)}')
-		# for conn in connected:
-		# 	await conn.send(json.dumps({'type': 'rxGroupUpdate', 'viewers':len(connected)}))
 
 # Start WebSocket server
 try:
-	start_server = websockets.serve(server, "0.0.0.0", 5000, process_request=initial)
-	asyncio.get_event_loop().run_until_complete(start_server)
-	asyncio.get_event_loop().run_forever()
+	start_server = websockets.serve(server, "0.0.0.0", 5600, process_request=initial)
+	# loop.run_until_complete(asyncio.gather((start_server, asyncSendWorker())))
+	loop.run_until_complete(start_server)
+	loop.run_forever()
 except KeyboardInterrupt or SystemExit:
 	try:
 		print("Exiting...")

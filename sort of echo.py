@@ -11,6 +11,7 @@ def make_umid():
 
 async def server(websocket, path):
 	connected.add(websocket)
+	print(websocket.request_headers)
 	print("ADD INDIVIDUAL "+str(id(websocket)))
 	for conn in connected:
 		await conn.send(json.dumps({'type': 'rxGroupUpdate', 'viewers':len(connected)}))

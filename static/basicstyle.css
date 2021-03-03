@@ -15,7 +15,8 @@ a {
 
 body,
 input,
-button,
+button, 
+select,
 a {
     /* text-align: center; */
     font-family: 'Rubik', sans-serif;
@@ -87,7 +88,7 @@ a {
     -webkit-tap-highlight-color: transparent;
 }
 
-button {
+button, select {
     font-size: 16px;
     height: 28px;
     /* padding: 15px; */
@@ -97,6 +98,11 @@ button {
     display: flex;
     align-items: center;
     justify-content: center;
+}
+
+option{
+    background-color: #000;
+    border-radius: 4px;
 }
 
 p>button {
