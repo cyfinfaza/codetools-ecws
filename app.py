@@ -490,6 +490,13 @@ def listSessions():
 		session['intent'] = "/sessions"
 		return redirect("/signin")
 
+@app.route('/fetchsession')
+def fetchAuth():
+	if validate(session):
+		sessID_sig = signee.sign(session['sessionID'])
+		return success_json({**session, 'sessionID_sig':sessID_sig})
+	else:
+		return error_json('Invalid Session')
 
 @app.route('/sessions/kill/<sessionID>')
 def killSession(sessionID):

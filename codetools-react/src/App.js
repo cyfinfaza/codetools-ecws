@@ -4,11 +4,15 @@ import Modal from "./Modal";
 import CodeFileButton from "./CodeFileButton";
 import Editor from "@monaco-editor/react";
 import RunArg from "./RunArg";
+import ReadonlyRunArg from "./ReadonlyRunArg";
 
-console.log("the app file");
+import ReactSafeHtml from "react-safe-html";
+
+// console.log("the app file");
 
 let uploadInstanceCount = 1;
 let globalUploadFlag = false;
+let theUploaderHasGotThis = false;
 let codeOnServer;
 let metadataOnServer;
 let argsOnServer;
@@ -18,6 +22,13 @@ const keyLang = {
   starterCode: "java",
   description: "html",
 };
+const keyOpt = {
+  code: { wordWrap: "off" },
+  starterCode: { wordWrap: "off" },
+  description: { wordWrap: "on" },
+};
+var ecws;
+var id_sig;
 
 function App({ editorType, contentID }) {
   const [metadata, setMetadata] = useState({
@@ -35,9 +46,11 @@ function App({ editorType, contentID }) {
     description: null,
   });
   const [args, setArgs] = useState([]);
+  const [args_immutable, setArgs_immutable] = useState([]);
+  const [runStatus, setRunStatus] = useState({ icon: "info", text: "Connecting to ECWS", style: "fancybutton_warn", enabled: false });
   let codeForEditor = code[openCodeKey];
   useEffect(async function () {
-    fetch("/contentget?id=" + contentID)
+    await fetch("/contentget?id=" + contentID)
       .then((response) => response.json())
       .then(async function (data) {
         console.log(data);
@@ -50,6 +63,7 @@ function App({ editorType, contentID }) {
         var metadataToSet = {};
         var codeToSet = {};
         codeToSet.code = data.code;
+        id_sig = data.id_sig;
         setArgs(
           data.args_mutable.map((server_arg) => {
             return { id: server_arg.id, text: server_arg.arg, output: "No Output" };
@@ -64,25 +78,47 @@ function App({ editorType, contentID }) {
         }
         if (data.timeout) metadataToSet.timeout = data.timeout;
         if (editorType == "editor_challenge") {
-          await fetch("/contentget?id=" + contentID)
+          await fetch("/contentget?id=" + data.assocChallenge)
             .then((response) => response.json())
-            .then((data) => {
-              metadataToSet.title = data.title;
-              codeToSet.description = data.description;
+            .then((assocData) => {
+              // console.log(assocData)
+              assocData = assocData.data;
+              metadataToSet.title = assocData.title;
+              codeToSet.description = assocData.description;
             });
+          setArgs_immutable(
+            data.args_immutable.map((server_arg) => {
+              return { id: server_arg.id, text: server_arg.arg, output: "No Output" };
+            })
+          );
         }
         setCode(codeToSet);
         codeOnServer = { ...codeToSet };
         setMetadata(metadataToSet);
         metadataOnServer = { ...metadataToSet };
-        setInterval(checkAndSave, 5000);
+        setInterval(checkAndSave, 10000);
         setOpenModal(null);
         setOpenCodeKey("code");
       })
-    .catch((e)=>{
-      console.error(e)
-      setOpenModal('fatalError')
-    })
+      .catch((e) => {
+        console.error(e);
+        setOpenModal("fatalError");
+      });
+    ecws = new WebSocket("wss://upstairs-direct.secure1.cy2.me/ecws/runcode");
+    ecws.addEventListener("open", () => {
+      setRunStatus({ icon: "play_arrow", text: "Run Code", style: "", enabled: true });
+    });
+    ecws.addEventListener("message", (event) => {
+      let data = JSON.parse(event.data);
+      let output = "";
+      if (data.type === "statusUpdate") setRunStatus({ icon: "hourglass_full", text: data.status, style: "fancybutton_half", enabled: true });
+      else if (data.type === "error") setRunStatus({ icon: "error", text: data.error, style: "fancybutton_error", enabled: true });
+      // console.log(data);
+      // console.log(runStatus);
+    });
+    ecws.addEventListener("close", (event) => {
+      setRunStatus({ icon: "error", text: "ECWS Offline", style: "fancybutton_error", enabled: false });
+    });
   }, []);
   useEffect(() => {
     let args_mutable = args.map((arg) => {
@@ -92,22 +128,30 @@ function App({ editorType, contentID }) {
     for (var propName in toSend) if (toSend[propName] === null || toSend[propName] === undefined) delete toSend[propName];
     uploadBody = toSend;
     setUploadFlag(true);
+    theUploaderHasGotThis = false;
+    // console.log(theUploaderHasGotThis);
   }, [code, metadata, args]);
   useEffect(() => {
     globalUploadFlag = uploadFlag;
   }, [uploadFlag]);
-  function checkAndSave() {
-    console.log(globalUploadFlag);
+  useEffect(() => {
+    console.info("ECWS Run: " + runStatus.text);
+  }, [runStatus]);
+  async function checkAndSave() {
+    // console.log(globalUploadFlag);
     if (uploadInstanceCount == 1 && globalUploadFlag) {
       uploadInstanceCount += 1;
-      setUploadFlag(false);
-      fetch("/contentset", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(uploadBody) })
+      theUploaderHasGotThis = true;
+      // console.log(theUploaderHasGotThis);
+      await fetch("/contentset", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(uploadBody) })
         .then((response) => response.json())
         .then((data) => {
-          console.log(data);
+          // console.log(data);
           uploadInstanceCount = 1;
           // console.log("needs to be saved");
         });
+      // console.log(theUploaderHasGotThis);
+      if (theUploaderHasGotThis) setUploadFlag(false);
     }
   }
   function handleEditorChange(e) {
@@ -132,6 +176,17 @@ function App({ editorType, contentID }) {
     let oldArgs = [...args];
     oldArgs.push({ id: makeid(10), output: "No Output", text: "" });
     setArgs(oldArgs);
+  }
+  async function runCode() {
+    setRunStatus({ icon: "hourglass_full", text: "Saving...", style: "fancybutton_half", enabled: false });
+    await checkAndSave();
+    setRunStatus({ icon: "hourglass_full", text: "Requesting...", style: "fancybutton_half", enabled: true });
+    let auth;
+    await fetch("/fetchsession")
+      .then((response) => response.json())
+      .then((data) => (auth = data.data));
+    console.log(auth);
+    ecws.send(JSON.stringify({ contentID: contentID, id_sig: id_sig, auth: auth }));
   }
   return (
     <>
@@ -206,6 +261,7 @@ function App({ editorType, contentID }) {
         <div className="editor-main" style={openModal == null ? {} : { pointerEvents: "none", userSelect: "none" }}>
           <div id="descriptionSidebar" className="sidebar">
             <h1 id="contentTitle" style={{ marginBottom: "0" }}>
+              {/* <ReactSafeHtml html={metadata.title == null ? "Loading..." : metadata.title} /> */}
               {metadata.title == null ? "Loading..." : metadata.title}
             </h1>
             {editorType != "editor_challenge" && (
@@ -214,6 +270,7 @@ function App({ editorType, contentID }) {
               </button>
             )}
             <p style={{ marginTop: "24px" }} id="contentDescription">
+              {/* <ReactSafeHtml html={code.description == null ? "Loading..." : code.description} /> */}
               {code.description == null ? "Loading..." : code.description}
             </p>
           </div>
@@ -241,7 +298,7 @@ function App({ editorType, contentID }) {
               className="monacoContainer"
               defaultLanguage={keyLang[openCodeKey]}
               theme="vs-dark"
-              options={{ minimap: { enabled: false } }}
+              options={{ minimap: { enabled: false }, ...keyOpt[openCodeKey] }}
               value={codeForEditor}
               path={openCodeKey}
               // onMount={monacoMounted}
@@ -252,13 +309,13 @@ function App({ editorType, contentID }) {
             <h1>{editorType == "challenge" ? "Prepare Tests" : "Run and Test"}</h1>
             <button
               id="runbutton"
-              className="fancybutton fancybutton_warn"
+              className={"fancybutton " + (runStatus.enabled ? "fancybutton_enabled " : "") + runStatus.style}
               style={{ width: "100%", margin: "0" }}
               // onmouseover="runButtonHovered()"
-              disabled
+              onClick={runStatus.enabled ? runCode : null}
             >
-              <i className="material-icons">info</i>
-              <span>Connecting to ECWS</span>
+              <i className="material-icons">{runStatus.icon}</i>
+              <span>{runStatus.text}</span>
             </button>
             <div
               id="compilerError"
@@ -335,6 +392,9 @@ function App({ editorType, contentID }) {
               </div>
             )}
             <div id="argslist" style={{ minHeight: "24px" }}>
+              {args_immutable.map((arg) => (
+                <ReadonlyRunArg key={arg.id} arg={arg} />
+              ))}
               {args.map((arg) => (
                 <RunArg key={arg.id} arg={arg} onChange={changeArg} onDelete={deleteArg} />
               ))}
