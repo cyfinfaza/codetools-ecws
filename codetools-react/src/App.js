@@ -46,7 +46,11 @@ function App({ editorType, contentID }) {
     description: null,
   });
   const [args, setArgs] = useState([]);
+  const args_ref = useRef();
+  args_ref.current = args;
   const [args_immutable, setArgs_immutable] = useState([]);
+  const args_immutable_ref = useRef();
+  args_immutable_ref.current = args_immutable;
   const [runStatus, setRunStatus] = useState({ icon: "info", text: "Connecting to ECWS", style: "fancybutton_warn", enabled: false });
   let codeForEditor = code[openCodeKey];
   useEffect(async function () {
@@ -113,6 +117,30 @@ function App({ editorType, contentID }) {
       let output = "";
       if (data.type === "statusUpdate") setRunStatus({ icon: "hourglass_full", text: data.status, style: "fancybutton_half", enabled: true });
       else if (data.type === "error") setRunStatus({ icon: "error", text: data.error, style: "fancybutton_error", enabled: true });
+      else if (data.type === "jobComplete") {
+        setRunStatus({ icon: "check_circle", text: "Tests Complete", style: "fancybutton_on", enabled: true });
+        // console.log(args_ref.current);
+        setArgs(
+          args_ref.current.map((existingArg) => {
+            let thisResult = data.data.filter((runResult) => runResult.id === existingArg.id)[0];
+            if (thisResult) {
+              return { ...existingArg, ...thisResult };
+            }
+            // console.log(existingArg);
+            return existingArg;
+          })
+        );
+        setArgs_immutable(
+          args_immutable_ref.current.map((existingArg) => {
+            let thisResult = data.data.filter((runResult) => runResult.id === existingArg.id)[0];
+            if (thisResult) {
+              return { ...existingArg, ...thisResult };
+            }
+            // console.log(existingArg);
+            return existingArg;
+          })
+        );
+      }
       // console.log(data);
       // console.log(runStatus);
     });

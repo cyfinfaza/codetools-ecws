@@ -175,6 +175,18 @@ def getRun(contentID):
     return {'code': code, 'args': args, 'argIDs': argIDs}
 
 
+def generateRequestBinary(job: EC_JobManager.Job):
+    request = reqres_pb2.Request()
+    request.id = job.id
+    request.inputMethod = job.meta['code']
+    request.inputMethodName = "myMethod"
+    request.solutionMethod = """public int solution(int a) {
+    return a + 1;
+}"""
+    request.inputs.extend(job.meta['args'])
+    return request.SerializeToString()
+
+
 # Connection and Job Management
 connectionGroup = EC_ConnectionGroup()
 jobManager = EC_JobManager(connectionGroup)
@@ -297,15 +309,7 @@ async def server(websocket, path):
                 if not jobManager.provision(runJob):
                     await websocket.send(json_error("E07: No runner nodes"))
                     continue
-                request = reqres_pb2.Request()
-                request.id = runJob.id
-                request.inputMethod = runMeta['code']
-                request.inputMethodName = "myMethod"
-                request.solutionMethod = """public int solution(int a) {
-        return a + 1;
-    }"""
-                request.inputs.extend(runMeta['args'])
-                requestBinary = request.SerializeToString()
+                requestBinary = generateRequestBinary(runJob)
                 await runJob.employee.ws.send(requestBinary)
                 await websocket.send(json_statusUpdate("Job in progress..."))
                 print(str(message))
@@ -316,8 +320,14 @@ async def server(websocket, path):
                 response = reqres_pb2.Response()
                 response.ParseFromString(message)
                 print(str(response))
-                for conn in (conn for conn in connectionGroup.allWS() if conn != websocket):
-                    await conn.send(message)
+                job: EC_JobManager.Job = jobManager.jobsByID()[response.id]
+                resultsMerged = []
+                for i in range(len(response.results)):
+                    resultsMerged.append(
+                        {'id': job.meta['argIDs'][i], 'output': response.results[i].methodOutput, 'match': response.results[i].match})
+                await job.customer.ws.send(json.dumps({'type': 'jobComplete', 'data': resultsMerged}))
+                # for conn in (conn for conn in connectionGroup.allWS() if conn != websocket):
+                #     await conn.send(message)
         print("END INDIVIDUAL LOGIC LOOP "+str(id(websocket)))
     except Exception as e:
         print(f"Exception {e}")
@@ -328,7 +338,7 @@ async def server(websocket, path):
 # Start WebSocket server
 try:
     start_server = websockets.serve(
-        server, "0.0.0.0", 5600, process_request=initial)
+        server, "0.0.0.0", 5600, process_request=initial, compression=None)
     # loop.run_until_complete(asyncio.gather((start_server, asyncSendWorker())))
     loop.run_until_complete(start_server)
     loop.run_forever()
