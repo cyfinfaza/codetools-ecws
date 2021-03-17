@@ -23,6 +23,7 @@ hasher = hashing()
 # Configuration
 EMPLOYEE_PATH = '/ecws/runner'
 CUSTOMER_PATH = '/ecws/runcode'
+POPRX_PATH = '/ecws/poprx'
 EXECUTOR_MAX_WORKERS = 5
 
 
@@ -254,10 +255,10 @@ async def initial(path, request_headers):
     remoteIP = request_headers['Remote-IP']
     print(f'[{remoteIP}] {path}', end=" ")
     pathonly = urlparse(path).path
-    if pathonly not in [EMPLOYEE_PATH, CUSTOMER_PATH]:
+    if pathonly not in [EMPLOYEE_PATH, CUSTOMER_PATH, POPRX_PATH]:
         print(f"{bcolors.WARNING}INVALID PATH{bcolors.ENDC}")
         return HTTPStatus.NOT_FOUND, [('server', 'managementWS_ipauth')], "Invalid Path".encode('UTF-8')
-    if (remoteIP in allowedIPs and pathonly == EMPLOYEE_PATH) or path == CUSTOMER_PATH:
+    if (remoteIP in allowedIPs and pathonly == EMPLOYEE_PATH) or pathonly in [CUSTOMER_PATH, POPRX_PATH]:
         print(f"{bcolors.OKGREEN}IPAUTH GRANTED{bcolors.ENDC}")
         return None
     else:
@@ -266,15 +267,25 @@ async def initial(path, request_headers):
 
 # Process WebSocket connections
 
+rxGroup = set()
 
-async def server(websocket, path):
+
+async def server(websocket: WebSocketServerProtocol, path):
     pathonly = urlparse(path).path
     if pathonly == EMPLOYEE_PATH:
         CONNECTION_TYPE = EC_ConnectionGroup.EMPLOYEE
-    else:
+    elif pathonly == CUSTOMER_PATH:
         CONNECTION_TYPE = EC_ConnectionGroup.CUSTOMER
+    else:
+        rxGroup.add(websocket)
+        await websocket.send(json.dumps({'type': 'rxGroupUpdate', 'employees': len(connectionGroup.employees), 'customers': len(connectionGroup.customers)}))
+        await websocket.wait_closed()
+        rxGroup.remove(websocket)
+        return
     connection = EC_ConnectionGroup.Connection(CONNECTION_TYPE, websocket)
     connectionGroup.add(connection)
+    for conn in rxGroup:
+        await conn.send(json.dumps({'type': 'rxGroupUpdate', 'employees': len(connectionGroup.employees), 'customers': len(connectionGroup.customers)}))
     print("ADD INDIVIDUAL "+str(id(websocket)))
     try:
         if connection.type == EC_ConnectionGroup.CUSTOMER:
@@ -334,6 +345,8 @@ async def server(websocket, path):
     finally:
         print("DELETE INDIVIDUAL "+str(id(websocket)))
         connectionGroup.remove(connection)
+        for conn in rxGroup:
+            await conn.send(json.dumps({'type': 'rxGroupUpdate', 'employees': len(connectionGroup.employees), 'customers': len(connectionGroup.customers)}))
 
 # Start WebSocket server
 try:

@@ -218,41 +218,40 @@ function App({ editorType, contentID }) {
   }
   return (
     <>
-      <div>
-        <div className="modalContainer" style={openModal == null ? {} : { backgroundColor: "#8884" }}>
-          <Modal open={openModal == "changeTitle"} title="Change Title" onClose={() => setOpenModal(null)}>
-            <input
-              onKeyDown={(event) => {
-                if (event.keyCode == 13) setOpenModal(null);
-              }}
-              type="text"
-              style={{
-                width: "100%",
-                boxSizing: "border-box",
-                height: "32px",
-              }}
-              value={metadata.title ? metadata.title : ""}
-              onChange={(e) => setMetadata({ ...metadata, title: e.target.value })}
-              placeholder="New title"
-            />
-          </Modal>
-          <Modal open={openModal == "editConfig"} title="Edit Config" onClose={() => setOpenModal(null)}>
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "row",
-                msFlexDirection: "row",
-                flexDirection: "row",
-                alignItems: "center",
-                WebkitBoxAlign: "center",
-                msFlexAlign: "center",
-                alignItems: "center",
-              }}
-            >
-              <label style={{ marginRight: "10px" }} htmlFor="timeout">
-                Timeout:{" "}
-              </label>
-              {/* <input
+      <div className="modalContainer" style={openModal == null ? {} : { backgroundColor: "#8884" }}>
+        <Modal open={openModal == "changeTitle"} title="Change Title" onClose={() => setOpenModal(null)}>
+          <input
+            onKeyDown={(event) => {
+              if (event.keyCode == 13) setOpenModal(null);
+            }}
+            type="text"
+            style={{
+              width: "100%",
+              boxSizing: "border-box",
+              height: "32px",
+            }}
+            value={metadata.title ? metadata.title : ""}
+            onChange={(e) => setMetadata({ ...metadata, title: e.target.value })}
+            placeholder="New title"
+          />
+        </Modal>
+        <Modal open={openModal == "editConfig"} title="Edit Config" onClose={() => setOpenModal(null)}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "row",
+              msFlexDirection: "row",
+              flexDirection: "row",
+              alignItems: "center",
+              WebkitBoxAlign: "center",
+              msFlexAlign: "center",
+              alignItems: "center",
+            }}
+          >
+            <label style={{ marginRight: "10px" }} htmlFor="timeout">
+              Timeout:{" "}
+            </label>
+            {/* <input
                 id="timeoutValue"
                 name="timeout"
                 onkeydown="if(event.keyCode == 13) {completeChangeConfiguration();}"
@@ -264,89 +263,132 @@ function App({ editorType, contentID }) {
                 }}
                 placeholder="Timeout"
               /> */}
-              <select value={metadata.timeout ? metadata.timeout : 5} onChange={(e) => setMetadata({ ...metadata, timeout: parseInt(e.target.value) })}>
-                {(() => {
-                  var output = [];
-                  for (var i = 1; i <= 15; i++) {
-                    output.push(
-                      <option key={i} value={i}>
-                        {i + " seconds"}
-                      </option>
-                    );
-                  }
-                  return output;
-                })()}
-              </select>
-            </div>
-          </Modal>
-          <Modal open={openModal == "contentLoading"} title="Content Loading..." noCloseButton onClose={() => setOpenModal(null)}>
-            <div className="loadingBar" style={{ width: "100%", height: 8 }}></div>
-          </Modal>
-          <Modal open={openModal == "fatalError"} title="Fatal Error" noCloseButton onClose={() => setOpenModal(null)}>
-            <p>An error has caused this editor to stop. Check the console for details. Reoad the editor.</p>
-          </Modal>
+            <select value={metadata.timeout ? metadata.timeout : 5} onChange={(e) => setMetadata({ ...metadata, timeout: parseInt(e.target.value) })}>
+              {(() => {
+                var output = [];
+                for (var i = 1; i <= 15; i++) {
+                  output.push(
+                    <option key={i} value={i}>
+                      {i + " seconds"}
+                    </option>
+                  );
+                }
+                return output;
+              })()}
+            </select>
+          </div>
+        </Modal>
+        <Modal open={openModal == "contentLoading"} title="Content Loading..." noCloseButton onClose={() => setOpenModal(null)}>
+          <div className="loadingBar" style={{ width: "100%", height: 8 }}></div>
+        </Modal>
+        <Modal open={openModal == "fatalError"} title="Fatal Error" noCloseButton onClose={() => setOpenModal(null)}>
+          <p>An error has caused this editor to stop. Check the console for details. Reoad the editor.</p>
+        </Modal>
+      </div>
+      <div className="editor-main" style={openModal == null ? {} : { pointerEvents: "none", userSelect: "none" }}>
+        <div id="descriptionSidebar" className="sidebar">
+          <h1 id="contentTitle" style={{ marginBottom: "0" }}>
+            {/* <ReactSafeHtml html={metadata.title == null ? "Loading..." : metadata.title} /> */}
+            {metadata.title == null ? "Loading..." : metadata.title}
+          </h1>
+          {editorType != "editor_challenge" && (
+            <button style={{ margin: "12px", marginLeft: "0" }} onClick={() => setOpenModal("changeTitle")}>
+              Change Title
+            </button>
+          )}
+          <p style={{ marginTop: "24px" }} id="contentDescription">
+            {/* <ReactSafeHtml html={code.description == null ? "Loading..." : code.description} /> */}
+            {code.description == null ? "Loading..." : code.description}
+          </p>
         </div>
-        <div className="editor-main" style={openModal == null ? {} : { pointerEvents: "none", userSelect: "none" }}>
-          <div id="descriptionSidebar" className="sidebar">
-            <h1 id="contentTitle" style={{ marginBottom: "0" }}>
-              {/* <ReactSafeHtml html={metadata.title == null ? "Loading..." : metadata.title} /> */}
-              {metadata.title == null ? "Loading..." : metadata.title}
-            </h1>
-            {editorType != "editor_challenge" && (
-              <button style={{ margin: "12px", marginLeft: "0" }} onClick={() => setOpenModal("changeTitle")}>
-                Change Title
-              </button>
-            )}
-            <p style={{ marginTop: "24px" }} id="contentDescription">
-              {/* <ReactSafeHtml html={code.description == null ? "Loading..." : code.description} /> */}
-              {code.description == null ? "Loading..." : code.description}
+        <div className="threeCenter">
+          {editorType == "editor_standalone" && (
+            <div className="tabs">
+              <CodeFileButton name="Code" keyName="code" compareKey={openCodeKey} changeKeyMethod={setOpenCodeKey} />
+              <CodeFileButton name="Description" keyName="description" compareKey={openCodeKey} changeKeyMethod={setOpenCodeKey} />
+            </div>
+          )}
+          {editorType == "challenge" && (
+            <div className="tabs">
+              <CodeFileButton name="Solution" keyName="code" compareKey={openCodeKey} changeKeyMethod={setOpenCodeKey} />
+              <CodeFileButton name="Starter Code" keyName="starterCode" compareKey={openCodeKey} changeKeyMethod={setOpenCodeKey} />
+              <CodeFileButton name="Description" keyName="description" compareKey={openCodeKey} changeKeyMethod={setOpenCodeKey} />
+            </div>
+          )}
+          {editorType == "editor_challenge" && (
+            <div className="tabs">
+              <CodeFileButton name="Code" keyName="code" compareKey={openCodeKey} changeKeyMethod={setOpenCodeKey} />
+            </div>
+          )}
+          <Editor
+            id="monacoContainer"
+            className="monacoContainer"
+            defaultLanguage={keyLang[openCodeKey]}
+            theme="vs-dark"
+            options={{ minimap: { enabled: false }, ...keyOpt[openCodeKey] }}
+            value={codeForEditor}
+            path={openCodeKey}
+            // onMount={monacoMounted}
+            onChange={handleEditorChange}
+          />
+        </div>
+        <div id="argsSidebar" className="sidebar">
+          <h1>{editorType == "challenge" ? "Prepare Tests" : "Run and Test"}</h1>
+          <button
+            id="runbutton"
+            className={"fancybutton " + (runStatus.enabled ? "fancybutton_enabled " : "") + runStatus.style}
+            style={{ width: "100%", margin: "0" }}
+            // onmouseover="runButtonHovered()"
+            onClick={runStatus.enabled ? runCode : null}
+          >
+            <i className="material-icons">{runStatus.icon}</i>
+            <span>{runStatus.text}</span>
+          </button>
+          <div
+            id="compilerError"
+            style={{
+              display: "none",
+              flexDirection: "column",
+              msFlexDirection: "column",
+              flexDirection: "column",
+              alignItems: "center",
+              WebkitBoxAlign: "center",
+              msFlexAlign: "center",
+              alignItems: "center",
+              color: "#F88",
+            }}
+          >
+            <p
+              style={{
+                display: "flex",
+                alignItems: "center",
+                WebkitBoxAlign: "center",
+                msFlexAlign: "center",
+                alignItems: "center",
+                marginBottom: "8px",
+              }}
+            >
+              <i className="material-icons" style={{ marginRight: "8px" }}>
+                warning
+              </i>{" "}
+              Compiler Error
+            </p>
+            <p
+              id="compilerErrorText"
+              className="monofont"
+              style={{
+                margin: "0",
+                fontSize: "12px",
+                msFlexItemAlign: "flex-start",
+                alignSelf: "flex-start",
+              }}
+            >
+              Error not displayed.
             </p>
           </div>
-          <div className="threeCenter">
-            {editorType == "editor_standalone" && (
-              <div className="tabs">
-                <CodeFileButton name="Code" keyName="code" compareKey={openCodeKey} changeKeyMethod={setOpenCodeKey} />
-                <CodeFileButton name="Description" keyName="description" compareKey={openCodeKey} changeKeyMethod={setOpenCodeKey} />
-              </div>
-            )}
-            {editorType == "challenge" && (
-              <div className="tabs">
-                <CodeFileButton name="Solution" keyName="code" compareKey={openCodeKey} changeKeyMethod={setOpenCodeKey} />
-                <CodeFileButton name="Starter Code" keyName="starterCode" compareKey={openCodeKey} changeKeyMethod={setOpenCodeKey} />
-                <CodeFileButton name="Description" keyName="description" compareKey={openCodeKey} changeKeyMethod={setOpenCodeKey} />
-              </div>
-            )}
-            {editorType == "editor_challenge" && (
-              <div className="tabs">
-                <CodeFileButton name="Code" keyName="code" compareKey={openCodeKey} changeKeyMethod={setOpenCodeKey} />
-              </div>
-            )}
-            <Editor
-              id="monacoContainer"
-              className="monacoContainer"
-              defaultLanguage={keyLang[openCodeKey]}
-              theme="vs-dark"
-              options={{ minimap: { enabled: false }, ...keyOpt[openCodeKey] }}
-              value={codeForEditor}
-              path={openCodeKey}
-              // onMount={monacoMounted}
-              onChange={handleEditorChange}
-            />
-          </div>
-          <div id="argsSidebar" className="sidebar">
-            <h1>{editorType == "challenge" ? "Prepare Tests" : "Run and Test"}</h1>
-            <button
-              id="runbutton"
-              className={"fancybutton " + (runStatus.enabled ? "fancybutton_enabled " : "") + runStatus.style}
-              style={{ width: "100%", margin: "0" }}
-              // onmouseover="runButtonHovered()"
-              onClick={runStatus.enabled ? runCode : null}
-            >
-              <i className="material-icons">{runStatus.icon}</i>
-              <span>{runStatus.text}</span>
-            </button>
+          {editorType == "editor_challenge" && (
             <div
-              id="compilerError"
+              id="challengeCompletedMessage"
               style={{
                 display: "none",
                 flexDirection: "column",
@@ -356,7 +398,7 @@ function App({ editorType, contentID }) {
                 WebkitBoxAlign: "center",
                 msFlexAlign: "center",
                 alignItems: "center",
-                color: "#F88",
+                color: "#8F8",
               }}
             >
               <p
@@ -370,99 +412,55 @@ function App({ editorType, contentID }) {
                 }}
               >
                 <i className="material-icons" style={{ marginRight: "8px" }}>
-                  warning
+                  check_circle
                 </i>{" "}
-                Compiler Error
-              </p>
-              <p
-                id="compilerErrorText"
-                className="monofont"
-                style={{
-                  margin: "0",
-                  fontSize: "12px",
-                  msFlexItemAlign: "flex-start",
-                  alignSelf: "flex-start",
-                }}
-              >
-                Error not displayed.
+                Challenge Completed
               </p>
             </div>
-            {editorType == "editor_challenge" && (
-              <div
-                id="challengeCompletedMessage"
-                style={{
-                  display: "none",
-                  flexDirection: "column",
-                  msFlexDirection: "column",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  WebkitBoxAlign: "center",
-                  msFlexAlign: "center",
-                  alignItems: "center",
-                  color: "#8F8",
-                }}
-              >
-                <p
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    WebkitBoxAlign: "center",
-                    msFlexAlign: "center",
-                    alignItems: "center",
-                    marginBottom: "8px",
-                  }}
-                >
-                  <i className="material-icons" style={{ marginRight: "8px" }}>
-                    check_circle
-                  </i>{" "}
-                  Challenge Completed
-                </p>
-              </div>
-            )}
-            <div id="argslist" style={{ minHeight: "24px" }}>
-              {args_immutable.map((arg) => (
-                <ReadonlyRunArg key={arg.id} arg={arg} />
-              ))}
-              {args.map((arg) => (
-                <RunArg key={arg.id} arg={arg} onChange={changeArg} onDelete={deleteArg} />
-              ))}
-            </div>
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                msFlexDirection: "column",
-                flexDirection: "column",
-                alignItems: "center",
-                WebkitBoxAlign: "center",
-                msFlexAlign: "center",
-                alignItems: "center",
-                width: "100%",
-              }}
-            >
-              <button className="hoverfancy" onClick={newArg} style={{ paddingRight: "12px", marginTop: "12px" }}>
-                <i className="material-icons">add</i> New Test
+          )}
+          <div id="argslist" style={{ minHeight: "24px" }}>
+            {args_immutable.map((arg) => (
+              <ReadonlyRunArg key={arg.id} arg={arg} />
+            ))}
+            {args.map((arg) => (
+              <RunArg key={arg.id} arg={arg} onChange={changeArg} onDelete={deleteArg} />
+            ))}
+          </div>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              msFlexDirection: "column",
+              flexDirection: "column",
+              alignItems: "center",
+              WebkitBoxAlign: "center",
+              msFlexAlign: "center",
+              alignItems: "center",
+              width: "100%",
+            }}
+          >
+            <button className="hoverfancy" onClick={newArg} style={{ paddingRight: "12px", marginTop: "12px" }}>
+              <i className="material-icons">add</i> New Test
+            </button>
+            {editorType != "editor_challenge" && (
+              <button id="setConfiguration" className="hoverfancy" onClick={() => setOpenModal("editConfig")} style={{ paddingRight: "10px", marginTop: "12px" }}>
+                <i className="material-icons" style={{ marginRight: "4px", fontSize: "24px" }}>
+                  tune
+                </i>
+                Config
               </button>
-              {editorType != "editor_challenge" && (
-                <button id="setConfiguration" className="hoverfancy" onClick={() => setOpenModal("editConfig")} style={{ paddingRight: "10px", marginTop: "12px" }}>
-                  <i className="material-icons" style={{ marginRight: "4px", fontSize: "24px" }}>
-                    tune
-                  </i>
-                  Config
-                </button>
-              )}
-            </div>
+            )}
           </div>
         </div>
-        <div id="uploadStatusDiv" className="uploadStatusDiv uploadStatusColored" style={{ backgroundColor: uploadFlag ? "#FD0" : "#0F0" }}>
-          <i id="uploadStatusIcon" className="material-icons" style={{ marginRight: "4px" }}>
-            {uploadFlag ? "sync" : "cloud_done"}
-          </i>
-          <span id="uploadStatusText">{uploadFlag ? "Saving..." : "Saved"}</span>
-        </div>
-        <div className="uploadStatusLine uploadStatusColored" style={{ backgroundColor: uploadFlag ? "#FD0" : "#0F0" }}>
-          something
-        </div>
+      </div>
+      <div id="uploadStatusDiv" className="uploadStatusDiv uploadStatusColored" style={{ backgroundColor: uploadFlag ? "#FD0" : "#0F0" }}>
+        <i id="uploadStatusIcon" className="material-icons" style={{ marginRight: "4px" }}>
+          {uploadFlag ? "sync" : "cloud_done"}
+        </i>
+        <span id="uploadStatusText">{uploadFlag ? "Saving..." : "Saved"}</span>
+      </div>
+      <div className="uploadStatusLine uploadStatusColored" style={{ backgroundColor: uploadFlag ? "#FD0" : "#0F0" }}>
+        something
       </div>
     </>
   );
