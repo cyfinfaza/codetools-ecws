@@ -34,7 +34,7 @@
         </div>
         <div style="display: flex; justify-content: flex-end;">
             {% if not hideButtons %} {% if not hideEditorButton %}
-            <button class="hoverfancy" onclick="window.location='/testeditor'"
+            <button class="hoverfancy" onclick="fadeThenGo('/testeditor')"
                 style="margin-right: 16px; margin-left: 8px; height: 48px; padding-left: 16px; padding-right: 16px; background-color: #FFFFFF; color: black;">Open
                 Editor</button>{% endif %}
             <button class="activefancy"
@@ -93,6 +93,13 @@
             alertStack--
             if (alertStack == 0) alertMessage.style.animationName = "alertDisappear"
         }, 4000);
+    }
+    function fadeThenGo(location) {
+        document.querySelector('body').style.filter = "brightness(0)"
+        let ftgInterval = setInterval(() => {
+            window.location = location
+            clearInterval(ftgInterval)
+        }, 240);
     }
 </script>
 <script src="/static/moment.min.js"></script>

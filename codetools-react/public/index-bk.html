@@ -13,6 +13,7 @@
         /* filter: blur(16px); */
         /* display: none; */
     }
+
     /* p,
     h1,
     h2,
@@ -23,7 +24,7 @@
     button {
         font-family: Circular Std Book !important;
     } */
-    
+
     textarea {
         font-family: inter;
         color: white;
@@ -44,11 +45,11 @@
         border-left-style: hidden;
         border-bottom-style: groove;
     }
-    
+
     textarea:focus {
         outline: none;
     }
-    
+
     @keyframes fade {
         0% {
             /* background-color: red; */
@@ -58,6 +59,7 @@
             /* transform: rotateX(-45deg); */
             filter: contrast(2);
         }
+
         100% {
             /* background-color: black; */
             opacity: 1;
@@ -67,13 +69,13 @@
             /* transform: rotateX(0deg); */
         }
     }
-    
+
     @keyframes redden {
         50% {
             background-color: red;
         }
     }
-    
+
     .hasfade {
         animation-name: fade;
         animation-duration: 240ms;
@@ -82,7 +84,7 @@
         text-decoration: unset;
         /* animation-delay: 1s; */
     }
-    
+
     #nameEnter {
         position: absolute;
         background-color: #000000DD;
@@ -94,54 +96,56 @@
         padding: 32px;
         border-radius: 16px;
     }
-    
+
     button:focus {
         outline: auto;
     }
-    
+
     @media screen and (max-width: 800px) {
         #mainPlayer {
             width: 100vw;
             height: 57vw;
             border-radius: 0;
         }
+
         #titleArea {
             position: unset !important;
             display: none;
             margin: 16px;
         }
+
         body {
             justify-content: start !important;
         }
     }
-    
+
     form input {
         margin: 6px;
     }
-    
+
     form button {
         margin: 6px;
     }
-    
+
     #header h1 {
         margin: 0;
     }
-    
+
     #header {
         background-color: black;
     }
-    
+
     @supports (backdrop-filter: saturate(180%) blur(20px)) {
         #header {
             background-color: #00000088;
             backdrop-filter: saturate(180%) blur(20px);
         }
     }
-    
+
     .big {
         font-size: 96px;
     }
-    
+
     body h1,
     h2,
     p,
@@ -149,76 +153,80 @@
     td {
         text-align: left;
     }
-    
+
     td {
         font-size: 24px;
     }
-    
+
     td {
         padding-right: 32px;
     }
-    
+
     .dropMenu button {
         margin: 3px;
         padding-left: 16px;
         padding-right: 16px;
     }
-    
+
     .activefancy:hover {
         transform: none;
     }
-    
+
     .activefancy:hover .expand-in-activefancy {
         transform: scale(1.5);
     }
-    
+
     .activefancy:active {
         transform: scale(0.94);
     }
-    
+
     .activefancy,
     .expand-in-activefancy {
         transition: all 240ms cubic-bezier(0.175, 0.885, 0.32, 1.275);
     }
-    
+
     @keyframes drop {
         0% {
             transform: translateY(-25%);
             opacity: 0;
         }
+
         100% {
             transform: none;
         }
     }
-    
+
     @media screen and (max-width: 600px) {
         .hoverfancy:hover {
             transform: none !important;
         }
+
         .hoverfancy:active {
             transform: scale(0.94) !important;
         }
+
         .nomobile {
             display: none;
         }
+
         .topwhenmobile {
             justify-content: flex-start !important;
         }
     }
-    
+
     @media screen and (min-width: 600px) {
         .big_nomobile {
             font-size: 96px;
         }
     }
-    
+
     #profileMenu button {
         border-radius: 4px;
         width: 128px;
         height: 40px;
         background-color: #ffffff11;
     }
-    
+
     button {
         margin: 4px;
     }
@@ -228,10 +236,14 @@
     <div style="position: fixed; display: flex; width: 100%; justify-content: center; z-index: 200;">
         <div id="alertMessage" class="invertAdaptBackground">Alert</div>
     </div>
-    <div id="header" style="position: fixed; top: 0; width: 100%; height: 84px; display: flex; align-items: center; z-index: 50; justify-content: center;">
+    <div id="header"
+        style="position: fixed; top: 0; width: 100%; height: 84px; display: flex; align-items: center; z-index: 50; justify-content: center;">
         <div style="display: flex; flex: 1; align-items: center;">
-            <img src="http://localhost:5000/static/CodeToolsLogo.svg" class="hoverfancy" style="height: 64px; margin-left: 10px; justify-self: center; cursor: pointer;" alt="" onclick="window.location='/'">
-            <h1 class="nomobile" style="margin-left: 16px; cursor: pointer; z-index: 5;" onclick="window.location='/'">{{appname}}</h1>
+            <img src="http://localhost:5000/static/CodeToolsLogo.svg" class="hoverfancy"
+                style="height: 64px; margin-left: 10px; justify-self: center; cursor: pointer;" alt=""
+                onclick="window.location='/'">
+            <h1 class="nomobile" style="margin-left: 16px; cursor: pointer; z-index: 5;" onclick="window.location='/'">
+                {{appname}}</h1>
             <!-- <div style="width: 2px; height: 32px; background-color: white; margin-left: 12px; margin-right: 12px;"></div> -->
             <h2 class="nomobile" style="justify-self: flex-start; margin-left: 16px; color: lightblue">{{pageName}}</h2>
         </div>
@@ -239,15 +251,17 @@
 
         </div>
         <div style="display: flex; justify-content: flex-end;">
-            <button class="activefancy" onclick="openProfileMenu()" style="margin-right: 16px; height: 48px; padding-left: 10px; padding-right: 10px; display: flex; align-items: center; outline: none;">
-				<i class="material-icons" style="color: white;">person</i>
-				<p style="margin-left: 6px; margin-right: 6px;">{{username}}</p>
-				<i class="material-icons expand-in-activefancy" style="color: white;">expand_more</i>
-			</button>
+            <button class="activefancy" onclick="openProfileMenu()"
+                style="margin-right: 16px; height: 48px; padding-left: 10px; padding-right: 10px; display: flex; align-items: center; outline: none;">
+                <i class="material-icons" style="color: white;">person</i>
+                <p style="margin-left: 6px; margin-right: 6px;">{{username}}</p>
+                <i class="material-icons expand-in-activefancy" style="color: white;">expand_more</i>
+            </button>
         </div>
         <!-- <h1>{{appname}}</h1> -->
     </div>
-    <div id="profileMenu" class="dropMenu" style="z-index: 100; display: none; position: fixed; right: 16px; top: 74px; flex-direction: column; background-color:#22222288; backdrop-filter: saturate(180%) blur(20px); padding: 1px; border-radius: 8px; animation: drop 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
+    <div id="profileMenu" class="dropMenu"
+        style="z-index: 100; display: none; position: fixed; right: 16px; top: 74px; flex-direction: column; background-color:#22222288; backdrop-filter: saturate(180%) blur(20px); padding: 1px; border-radius: 8px; animation: drop 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
         <button class="activefancy" onclick="window.location='/testeditor'">Test Editor</button>
         <button class="activefancy" onclick="window.location='/newchallenge'">Test Challenge</button>
         <button class="activefancy" onclick="window.location='/account'">My Account</button>
@@ -260,6 +274,10 @@
       <input class="hoverfancy" type="password" name="password" placeholder="Password">
       <button class="hoverfancy" style="width:fit-content; margin-top: 8px;" type="submit">Sign In</button>
     </form> -->
+    <script>
+        window.editorType_server = "{{editorType}}";
+        window.myContentID_server = "{{myContentID}}";
+    </script>
     <div id="root"></div>
 </body>
 <script>

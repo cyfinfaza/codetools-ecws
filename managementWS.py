@@ -1,4 +1,5 @@
 import asyncio
+from cryptography.x509 import extensions
 import websockets
 import json
 import random
@@ -10,6 +11,7 @@ import concurrent.futures
 from dotenv import load_dotenv
 from os import environ
 import pymongo
+from websockets.extensions.permessage_deflate import ServerPerMessageDeflateFactory
 from websockets.server import WebSocketServerProtocol
 from bcolors import bcolors
 from keyMakeSignCheck.KeyManagement import Signee
@@ -167,24 +169,29 @@ def getRun(contentID):
     args = []
     argIDs = []
     for arg in runContent['args_mutable']:
+        if arg['arg'] == "":
+            continue
         args.append(arg['arg'])
         argIDs.append(arg['id'])
     if 'args_immutable' in runContent:
         for arg in runContent['args_immutable']:
+            if arg['arg'] == "":
+                continue
             args.append(arg['arg'])
             argIDs.append(arg['id'])
-    return {'code': code, 'args': args, 'argIDs': argIDs}
+    return {'code': code, 'args': args, 'argIDs': argIDs, 'editorType': runContent['type']}
 
 
 def generateRequestBinary(job: EC_JobManager.Job):
     request = reqres_pb2.Request()
     request.id = job.id
     request.inputMethod = job.meta['code']
-    request.inputMethodName = "myMethod"
+    request.inputMethodName = "solution" if job.meta['editorType'] == "challenge" else "myMethod"
     request.solutionMethod = """public int solution(int a) {
     return a + 1;
 }"""
     request.inputs.extend(job.meta['args'])
+    request.timeout = 2
     return request.SerializeToString()
 
 
@@ -322,8 +329,8 @@ async def server(websocket: WebSocketServerProtocol, path):
                     continue
                 requestBinary = generateRequestBinary(runJob)
                 await runJob.employee.ws.send(requestBinary)
-                await websocket.send(json_statusUpdate("Job in progress..."))
-                print(str(message))
+                await websocket.send(json_statusUpdate("Running..."))
+                # print(str(message))
                 # for conn in (conn for conn in connectionGroup.allWS() if conn != websocket):
                 # 	await conn.send(message)
         elif connection.type == EC_ConnectionGroup.EMPLOYEE:
@@ -332,11 +339,35 @@ async def server(websocket: WebSocketServerProtocol, path):
                 response.ParseFromString(message)
                 print(str(response))
                 job: EC_JobManager.Job = jobManager.jobsByID()[response.id]
-                resultsMerged = []
-                for i in range(len(response.results)):
-                    resultsMerged.append(
-                        {'id': job.meta['argIDs'][i], 'output': response.results[i].methodOutput, 'match': response.results[i].match})
-                await job.customer.ws.send(json.dumps({'type': 'jobComplete', 'data': resultsMerged}))
+                # resultsMerged = []
+                # for i in range(len(response.results)):
+                #     resultsMerged.append(
+                #         {'id': job.meta['argIDs'][i], 'methodOutputType': response.results[i].methodOutputType, 'output': response.results[i].methodOutput, 'match': response.results[i].match})
+                output = []
+                if response.overallResultType != reqres_pb2.Response.RunResultType.CompilerError:
+                    for i in range(len(response.results)):
+                        output.append({
+                            'id': job.meta['argIDs'][i],
+                            'output': response.results[i].methodOutput,
+                            'type': reqres_pb2.OutputResultType.Name(response.results[i].methodOutputType),
+                            'match': response.results[i].match,
+                        })
+                if response.overallResultType == reqres_pb2.Response.RunResultType.Success:
+                    await job.customer.ws.send(json.dumps({'type': 'jobComplete', 'run': 'success', 'data': output}))
+                    continue
+                if response.overallResultType == reqres_pb2.Response.RunResultType.CompilerError:
+                    try:
+                        formattedError = response.results[0].methodOutput.replace(
+                            "\\n", "<br>").replace("\\r", "")
+                        SEARCH = "JavaWrappedClass.java"
+                        formattedError = formattedError[formattedError.index(
+                            SEARCH)+len(SEARCH)+4:]
+                    except:
+                        formattedError = response.results[0].methodOutput.replace(
+                            "\\n", "<br>").replace("\\r", "")
+                    await job.customer.ws.send(json.dumps({'type': 'jobComplete', 'run': 'compilerError', 'error': formattedError}))
+                    continue
+                await job.customer.ws.send(json_error("E08: jr5 bad output"))
                 # for conn in (conn for conn in connectionGroup.allWS() if conn != websocket):
                 #     await conn.send(message)
         print("END INDIVIDUAL LOGIC LOOP "+str(id(websocket)))
@@ -351,7 +382,15 @@ async def server(websocket: WebSocketServerProtocol, path):
 # Start WebSocket server
 try:
     start_server = websockets.serve(
-        server, "0.0.0.0", 5600, process_request=initial, compression=None)
+        server, "0.0.0.0", 5600, process_request=initial, extensions=[
+            ServerPerMessageDeflateFactory(
+                server_max_window_bits=15,
+                client_max_window_bits=15,
+                compress_settings={'memLevel': 4},
+            ),
+        ],)
+    websockets.WebSocketServer
+    # server, "0.0.0.0", 5600, process_request=initial, compression=None)
     # loop.run_until_complete(asyncio.gather((start_server, asyncSendWorker())))
     loop.run_until_complete(start_server)
     loop.run_forever()

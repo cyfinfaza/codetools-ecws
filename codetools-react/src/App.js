@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState } from "react";
 import "./editorstyle.css";
 import Modal from "./Modal";
+import LoadingScreen from "./LoadingScreen";
 import CodeFileButton from "./CodeFileButton";
 import Editor from "@monaco-editor/react";
 import RunArg from "./RunArg";
@@ -102,6 +103,7 @@ function App({ editorType, contentID }) {
         metadataOnServer = { ...metadataToSet };
         setInterval(checkAndSave, 10000);
         setOpenModal(null);
+        document.getElementById("header").style.display = "flex";
         setOpenCodeKey("code");
       })
       .catch((e) => {
@@ -118,6 +120,10 @@ function App({ editorType, contentID }) {
       if (data.type === "statusUpdate") setRunStatus({ icon: "hourglass_full", text: data.status, style: "fancybutton_half", enabled: true });
       else if (data.type === "error") setRunStatus({ icon: "error", text: data.error, style: "fancybutton_error", enabled: true });
       else if (data.type === "jobComplete") {
+        if (data.run === "compilerError") {
+          setRunStatus({ icon: "warning", text: "Compiler Error", style: "fancybutton_warn", enabled: true });
+          return;
+        }
         setRunStatus({ icon: "check_circle", text: "Tests Complete", style: "fancybutton_on", enabled: true });
         // console.log(args_ref.current);
         setArgs(
@@ -218,7 +224,7 @@ function App({ editorType, contentID }) {
   }
   return (
     <>
-      <div className="modalContainer" style={openModal == null ? {} : { backgroundColor: "#8884" }}>
+      <div className="modalContainer" style={openModal == null || openModal == "contentLoading" ? {} : { backgroundColor: "#8884" }}>
         <Modal open={openModal == "changeTitle"} title="Change Title" onClose={() => setOpenModal(null)}>
           <input
             onKeyDown={(event) => {
@@ -278,9 +284,10 @@ function App({ editorType, contentID }) {
             </select>
           </div>
         </Modal>
-        <Modal open={openModal == "contentLoading"} title="Content Loading..." noCloseButton onClose={() => setOpenModal(null)}>
+        <LoadingScreen open={openModal == "contentLoading"}>
+          <img src="/static/CodeToolsLogo.svg" style={{ width: "50%", marginBottom: 16 }}></img>
           <div className="loadingBar" style={{ width: "100%", height: 8 }}></div>
-        </Modal>
+        </LoadingScreen>
         <Modal open={openModal == "fatalError"} title="Fatal Error" noCloseButton onClose={() => setOpenModal(null)}>
           <p>An error has caused this editor to stop. Check the console for details. Reoad the editor.</p>
         </Modal>
@@ -325,7 +332,7 @@ function App({ editorType, contentID }) {
             className="monacoContainer"
             defaultLanguage={keyLang[openCodeKey]}
             theme="vs-dark"
-            options={{ minimap: { enabled: false }, ...keyOpt[openCodeKey] }}
+            options={{ minimap: { enabled: false }, ...keyOpt[openCodeKey], fontFamily: "DM Mono, monospace" }}
             value={codeForEditor}
             path={openCodeKey}
             // onMount={monacoMounted}

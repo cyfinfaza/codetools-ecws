@@ -1,7 +1,5 @@
 from pymongo.common import validate
-from array import typecodes
 from datetime import datetime, time, timedelta, timezone, tzinfo
-from types import MethodDescriptorType
 from flask import Flask, render_template, request, redirect, session, url_for, Response
 from flask_hashing import Hashing
 from flask_moment import Moment
@@ -504,7 +502,7 @@ def signup():
             else:
                 return render_template("signup.html", nowuser=request.form['username'], nowname=request.form['actualname'], nowpass=request.form['password'], nowerrors="Minimum length: Username: 3 characters; Password: 8 characters", sitekey=RECAPTCHA_SITEKEY)
         else:
-            return render_template("signup.html", nowuser=request.form['username'], nowname=request.form['actualname'], nowpass=request.form['password'], nowerrors="ReCaptcha verification error occurred. Ensure you are not a robot.", sitekey=RECAPTCHA_SITEKEY)
+            return render_template("signup.html", nowuser=request.form['username'], nowname=request.form['actualname'], nowpass=request.form['password'], nowerrors="reCaptcha verification error occurred. Ensure you are not a robot.", sitekey=RECAPTCHA_SITEKEY)
         return render_template('messageandredirect.html', messageTitle="Account created.", redirectDescription="You will now be redirected to sign in to your new account.", countdownFrom="5", redirectTo="/signin")
 
 
@@ -635,7 +633,7 @@ def getContent(linkID):
         if contentData['type'] == 'editor_standalone':
             pageName = contentData['name']+": editing"
         if contentData['owner'] == userData['_id']:
-            return render_template('challenge.html', username=session['username'], myContentID=contentData['_id'], editorType=contentData['type'], pageName=pageName)
+            return render_template('react-editor.html', username=session['username'], myContentID=contentData['_id'], editorType=contentData['type'], pageName=pageName)
         elif contentData['type'] == 'challenge':
             editorChallenge = content.find_one(
                 {'owner': userData['_id'], 'type': 'editor_challenge', 'assocChallenge': contentData['_id']})
@@ -656,7 +654,7 @@ def getContent(linkID):
                 })
             else:
                 contentID = editorChallenge['_id']
-            return render_template('challenge.html', username=session['username'], myContentID=contentID, editorType='editor_challenge', pageName="Challenge")
+            return render_template('react-editor.html', username=session['username'], myContentID=contentID, editorType='editor_challenge', pageName="Challenge")
         else:
             return "You do not have permission to view this content."
     else:

@@ -276,6 +276,30 @@ code {
   position: absolute;
 }
 
+.loadingScreen{
+  background-color: #000;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  padding: 32px;
+  align-items: center;
+  justify-content: center;
+  transition: 200ms ease;
+  z-index: 100;
+  box-sizing: border-box;
+  position: absolute;
+}
+
+.loadingScreen .loaderContent{
+  animation: dropin 0.15s ease backwards;
+  transition: 200ms ease;
+  width: 100%;
+  max-width: 500px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
 .modal:first-child{
     margin-top: 0;
 }
