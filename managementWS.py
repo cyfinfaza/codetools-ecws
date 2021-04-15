@@ -19,6 +19,7 @@ import time
 import requests
 from flask_hashing import Hashing as hashing
 import jrunner5.python.reqres_pb2 as reqres_pb2
+import traceback
 
 hasher = hashing()
 
@@ -27,6 +28,10 @@ EMPLOYEE_PATH = '/ecws/runner'
 CUSTOMER_PATH = '/ecws/runcode'
 POPRX_PATH = '/ecws/poprx'
 EXECUTOR_MAX_WORKERS = 5
+
+GENERIC_SOLUTION = """public int solution(int a) {
+    return a + 1;
+}"""
 
 
 class EC_ConnectionGroup:
@@ -179,19 +184,37 @@ def getRun(contentID):
                 continue
             args.append(arg['arg'])
             argIDs.append(arg['id'])
-    return {'code': code, 'args': args, 'argIDs': argIDs, 'editorType': runContent['type']}
+    run = {'code': code, 'args': args, 'argIDs': argIDs, 'editorType': runContent['type']}
+    if 'timeout' in runContent:
+        run['timeout'] = runContent['timeout']
+    else:
+        run['timeout'] = 2
+    if 'runMethod' in runContent:
+        run['runMethod'] = runContent['runMethod']
+    else:
+        run['runMethod'] = "myMethod"
+    if runContent['type'] == "editor_challenge":
+        challengeContent = content.find_one({'_id': runContent['assocChallenge']})
+        run['solution'] = challengeContent['code']
+        if 'timeout' in challengeContent:
+            run['timeout'] = challengeContent['timeout']
+        else:
+            run['timeout'] = 2
+        if 'runMethod' in challengeContent:
+            run['runMethod'] = challengeContent['runMethod']
+        else:
+            run['runMethod'] = "myMethod"
+    return run
 
 
 def generateRequestBinary(job: EC_JobManager.Job):
     request = reqres_pb2.Request()
     request.id = job.id
     request.inputMethod = job.meta['code']
-    request.inputMethodName = "solution" if job.meta['editorType'] == "challenge" else "myMethod"
-    request.solutionMethod = """public int solution(int a) {
-    return a + 1;
-}"""
+    request.inputMethodName = "solution" if job.meta['editorType'] == "challenge" else job.meta['runMethod']
+    request.solutionMethod = job.meta['solution'] if 'solution' in job.meta else GENERIC_SOLUTION
     request.inputs.extend(job.meta['args'])
-    request.timeout = 2
+    request.timeout = job.meta['timeout']
     return request.SerializeToString()
 
 
@@ -255,6 +278,28 @@ def completeJob(job: EC_JobManager.Job, employeeResponse):
     # Send the response to the customer
     pass
 
+def saveChallengeResult(contentID, successful, output):
+    currentDocument = content.find_one({'_id':contentID})
+    currentArgs = currentDocument['args_immutable']
+    niceOutput = {}
+    for result in output:
+        niceOutput[result['id']] = result.copy()
+    print("niceOutput:", niceOutput)
+    print("currentArgs:", currentArgs)
+    argsToWrite = currentArgs.copy()
+    for arg in argsToWrite:
+        print("working")
+        if successful:
+            if arg["id"] in niceOutput:
+                arg['match'] = niceOutput[arg['id']]['match']
+            else:
+                arg['match'] = False
+        else:
+            arg['match'] = False
+    print("argsToWrite:", argsToWrite)
+    content.update_one({'_id':contentID}, {'$set':{'args_immutable':argsToWrite}})
+
+
 # Override process_request to perform validation
 
 
@@ -302,7 +347,7 @@ async def server(websocket: WebSocketServerProtocol, path):
                 try:
                     runRequest = json.loads(messageContent)
                 except:
-                    await websocket.send(json_error("E01 msg corrupt"))
+                    await websocket.send(json_error("E01: msg corrupt"))
                     continue
                 if not all(key in runRequest for key in ['contentID', 'id_sig', 'auth']):
                     await websocket.send(json_error("E02: msg 1+ key missing"))
@@ -337,8 +382,9 @@ async def server(websocket: WebSocketServerProtocol, path):
             async for message in websocket:
                 response = reqres_pb2.Response()
                 response.ParseFromString(message)
-                print(str(response))
+                # print(str(response))
                 job: EC_JobManager.Job = jobManager.jobsByID()[response.id]
+                # print(job.meta)
                 # resultsMerged = []
                 # for i in range(len(response.results)):
                 #     resultsMerged.append(
@@ -353,6 +399,8 @@ async def server(websocket: WebSocketServerProtocol, path):
                             'match': response.results[i].match,
                         })
                 if response.overallResultType == reqres_pb2.Response.RunResultType.Success:
+                    if job.meta['editorType'] == "editor_challenge":
+                        executor.submit(saveChallengeResult, job.meta['id'], True, output)
                     await job.customer.ws.send(json.dumps({'type': 'jobComplete', 'run': 'success', 'data': output}))
                     continue
                 if response.overallResultType == reqres_pb2.Response.RunResultType.CompilerError:
@@ -365,6 +413,8 @@ async def server(websocket: WebSocketServerProtocol, path):
                     except:
                         formattedError = response.results[0].methodOutput.replace(
                             "\\n", "<br>").replace("\\r", "")
+                    if job.meta['editorType'] == "editor_challenge":
+                        executor.submit(saveChallengeResult, job.meta['id'], False, output)
                     await job.customer.ws.send(json.dumps({'type': 'jobComplete', 'run': 'compilerError', 'error': formattedError}))
                     continue
                 await job.customer.ws.send(json_error("E08: jr5 bad output"))
@@ -373,6 +423,7 @@ async def server(websocket: WebSocketServerProtocol, path):
         print("END INDIVIDUAL LOGIC LOOP "+str(id(websocket)))
     except Exception as e:
         print(f"Exception {e}")
+        print(traceback.format_exc())
     finally:
         print("DELETE INDIVIDUAL "+str(id(websocket)))
         connectionGroup.remove(connection)
@@ -384,7 +435,7 @@ try:
     start_server = websockets.serve(
         server, "0.0.0.0", 5600, process_request=initial, extensions=[
             ServerPerMessageDeflateFactory(
-                server_max_window_bits=15,
+                server_max_window_bits=15, # kotlin is bad, so we must do this, and then it shall work
                 client_max_window_bits=15,
                 compress_settings={'memLevel': 4},
             ),
