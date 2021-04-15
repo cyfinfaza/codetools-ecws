@@ -1,3 +1,5 @@
+from logging import error
+from types import new_class
 from pymongo.common import validate
 from datetime import datetime, time, timedelta, timezone, tzinfo
 from flask import Flask, render_template, request, redirect, session, url_for, Response
@@ -38,9 +40,11 @@ content = db['content']
 app = Flask(__name__)
 hashing = Hashing(app)
 moment = Moment(app)
-cors = CORS(app)
+cors = CORS(app, supports_credentials=True)
 app.secret_key = "blah blah blah"
 app.config["TEMPLATES_AUTO_RELOAD"] = True
+
+app.config.update(SESSION_COOKIE_SAMESITE='None', SESSION_COOKIE_SECURE=True)
 
 DEFAULT_CODE = """public int myMethod(int a) {
 	return a + 1;
@@ -189,6 +193,7 @@ def getCode():
 
 
 @app.route('/contentset', methods=['POST'])
+@app.route('/api/contentset', methods=['POST'])
 def contentSet():
     print(request.json)
     try:
@@ -247,6 +252,7 @@ def contentSet():
 
 
 @app.route('/contentget')
+@app.route('/api/contentget')
 def contentGet():
     try:
         contentID = request.args['id']
@@ -434,12 +440,13 @@ def signin():
 
 
 @app.route("/api/signin", methods=['POST'])
-def apiSignin():
+def api_signin():
+    requestData = request.get_json(force=True)
     if request.method == 'POST':
-        data = users.find_one({'username': request.form['username']})
+        data = users.find_one({'username': requestData['username']})
         if data == None:
-            return render_template("signin.html", nowuser=request.form['username'], nowpass=request.form['password'], nowerrors="User not found.")
-        if hashing.check_value(data['password_hash'], request.form['password'], salt=data['password_salt']):
+            return error_json("User not found.")
+        if hashing.check_value(data['password_hash'], requestData['password'], salt=data['password_salt']):
             newSessionID = str(uuid.uuid4())
             newSessionKey = make_sess_key()
             newSessionSalt = make_salt()
@@ -455,13 +462,13 @@ def apiSignin():
             session['sessionID'] = newSessionID
             session['sessionKey'] = newSessionKey
             session['api'] = True
-            return json.dumps({'type': 'success'})
+            return success_json()
         else:
-            return json.dumps({'type': 'failed'})
+            return error_json("Wrong password.")
 
 
 @app.route('/signout')
-def signout():
+def api_signout():
     try:
         users.update_one({'username': session['username']}, {
             '$pull': {'sessions': {'id': session['sessionID']}}})
@@ -470,6 +477,17 @@ def signout():
     except:
         return "there was an error signing out"
     return redirect("/")
+
+@app.route('/api/signout')
+def signout():
+    try:
+        users.update_one({'username': session['username']}, {
+            '$pull': {'sessions': {'id': session['sessionID']}}})
+        session.pop('sessionID')
+        session.pop('sessionKey')
+    except:
+        return error_json("Failed to sign out.")
+    return success_json()
 
 
 @app.route("/signup", methods=['GET', 'POST'])
@@ -505,18 +523,53 @@ def signup():
             return render_template("signup.html", nowuser=request.form['username'], nowname=request.form['actualname'], nowpass=request.form['password'], nowerrors="reCaptcha verification error occurred. Ensure you are not a robot.", sitekey=RECAPTCHA_SITEKEY)
         return render_template('messageandredirect.html', messageTitle="Account created.", redirectDescription="You will now be redirected to sign in to your new account.", countdownFrom="5", redirectTo="/signin")
 
+@app.route("/api/signup", methods=['POST'])
+def api_signup():
+    requestData = request.get_json(force=True)
+    if request.method == 'POST':
+        # print(requestData)
+        if 'g-recaptcha-response' not in requestData:
+            return error_json("reCAPTCHA verification not recieved.")
+        recaptcha_reponse = json.loads(requests.post('https://www.google.com/recaptcha/api/siteverify', {
+            'secret': RECAPTCHA_SECRET, 'response': requestData['g-recaptcha-response']}).text)
+        print(recaptcha_reponse)
+        if recaptcha_reponse['success']:
+            if len(requestData['username']) > 2 and len(requestData['password']) > 7:
+                data = users.find_one({'username': requestData['username']})
+                if data == None:
+                    some_salt = make_salt()
+                    actualname = requestData['username']
+                    if requestData['actualname'] != "":
+                        actualname = requestData['actualname']
+                    users.insert_one({
+                        '_id': str(uuid.uuid4()),
+                        'username': requestData['username'],
+                        'actualname': actualname,
+                        'password_hash': hashing.hash_value(requestData['password'], salt=some_salt),
+                        'password_salt': some_salt,
+                        'sessions': []
+                    })
+                else:
+                    return error_json("User already exists. Try signing in.")
+            else:
+                return error_json("Minimum length: Username: 3 characters; Password: 8 characters")
+        else:
+            return error_json("reCAPTCHA verification error occurred. Ensure you are not a robot.")
+        return success_json()
 
-@app.route('/sessions')
+
+@app.route('/api/sessions')
 def listSessions():
     if validate(session):
         data = users.find_one({'username': session['username']})
-        return '<br>'.join(f'<a href="/sessions/kill/{i["id"]}">(kill)</a> {i["time"]} {i["userAgent"]}' for i in data['sessions'])
+        return success_json(data['sessions'])
     else:
         session['intent'] = "/sessions"
         return redirect("/signin")
 
 
 @app.route('/fetchsession')
+@app.route('/api/fetchsession')
 def fetchAuth():
     if validate(session):
         sessID_sig = signee.sign(session['sessionID'])
@@ -537,6 +590,18 @@ def killSession(sessionID):
     else:
         session['intent'] = "/sessions/kill/"+sessionID
         return redirect("/signin")
+
+@app.route('/api/killsession/<sessionID>')
+def api_killSession(sessionID):
+    if validate(session):
+        try:
+            users.update_one({'username': session['username']}, {
+                '$pull': {'sessions': {'id': sessionID}}})
+            return success_json()
+        except:
+            return error_json("Failed to kill session")
+    else:
+        return error_json("Invalid session")
 
 
 @app.route("/changepassword", methods=['GET', 'POST'])
@@ -562,6 +627,26 @@ def changePassword():
         session['intent'] = '/changepassword'
         return redirect("/signin")
 
+@app.route("/api/changepassword", methods=['POST'])
+def api_changePassword():
+    requestData = request.get_json(force=True)
+    if validate(session):
+        if request.method == 'POST':
+            data = users.find_one({'username': session['username']})
+            if hashing.check_value(data['password_hash'], requestData['oldpass'], salt=data['password_salt']):
+                if len(requestData['newpass']) > 7:
+                    some_salt = make_salt()
+                    users.update_one({'username': session['username']}, {'$set': {
+                        'password_hash': hashing.hash_value(requestData['newpass'], salt=some_salt),
+                        'password_salt': some_salt,
+                    }})
+                    return success_json()
+                else:
+                    return error_json("New password must be 8 or more characters.")
+            else:
+                return error_json("Wrong password.")
+    else:
+        error_json("Invalid session")
 
 @app.route("/deleteaccount", methods=['GET', 'POST'])
 def deleteAccount():
@@ -579,6 +664,20 @@ def deleteAccount():
         session['intent'] = '/deleteaccount'
         return redirect("/signin")
 
+@app.route("/api/deleteaccount", methods=['POST'])
+def api_deleteAccount():
+    requestData = request.get_json(force=True)
+    if validate(session):
+        if request.method == 'POST':
+            data = users.find_one({'username': session['username']})
+            if hashing.check_value(data['password_hash'], requestData['password'], salt=data['password_salt']):
+                users.delete_one({'username': session['username']})
+                return success_json()
+            else:
+                return error_json("Wrong password.")
+    else:
+        return error_json("Invalid session")
+
 
 @app.route("/changeactualname", methods=['GET', 'POST'])
 def changeActualName():
@@ -594,8 +693,22 @@ def changeActualName():
                 return render_template("changeactualname.html", username=session['username'], currentName=userData['actualname'], nowerrors="Name must be at least one character.")
         return redirect('/account')
     else:
-        session['intent'] = '/changepassword'
+        session['intent'] = '/changeactualname'
         return redirect("/signin")
+
+@app.route("/api/changeactualname", methods=['POST'])
+def api_changeActualName():
+    requestData = request.get_json(force=True)
+    if validate(session):
+        if request.method == 'POST':
+            if len(requestData['newName']) > 0:
+                users.update_one({'username': session['username']}, {
+                    '$set': {'actualname': requestData['newName']}})
+            else:
+                return error_json("Name must be at least one character.")
+        return success_json()
+    else:
+        return error_json("Invalid session")
 
 
 @app.route('/account')
@@ -618,6 +731,117 @@ def account():
     else:
         session['intent'] = '/account'
         return redirect('/signin')
+
+
+@app.route('/api/accountdata')
+def api_account():
+    if validate(session):
+        accountData = users.find_one({'username': session['username']})
+        for sess in accountData['sessions']:
+            if sess['id'] == session['sessionID']:
+                sess['current'] = True
+            userAgent = user_agents.parse(sess['userAgent'])
+            sess['readableUserAgent'] = userAgent.browser.family + \
+                " on " + userAgent.os.family
+            sess.pop('hash')
+            sess.pop('salt')
+        accountData['sessions'] = sorted(
+            accountData['sessions'], key=lambda k: k['time'], reverse=True)
+        if not 'actualname' in accountData:
+            users.update_one({'username': accountData['username']}, {
+                '$set': {'actualname': accountData['username']}})
+            accountData = users.find_one({'username': session['username']})
+        accountData.pop("password_hash")
+        accountData.pop("password_salt")
+        return success_json(accountData)
+    else:
+        return error_json("Invalid session")
+
+@app.route("/api/myContent")
+def api_mycontent():
+    if validate(session):
+        accountData = users.find_one({'username': session['username']})
+        myContent = list(content.find({'owner':accountData['_id']}))
+        # myContent = sorted(myContent, key=lambda k: k['modified'], reverse=True)
+        attemptedChallenges = [element for element in myContent if element['type']=="editor_challenge"]
+        assocChallenges = list(content.find({'_id':{'$in':[element['assocChallenge'] for element in attemptedChallenges]}}))
+        output = []
+        for element in myContent:
+            newDict = {}
+            for key in ['_id', 'type', 'modified']:
+                newDict[key] = element[key]
+            if element['type'] == "editor_challenge":
+                try:
+                    assocChallenge = [challenge for challenge in assocChallenges if challenge['_id']==element['assocChallenge']][0]
+                    newDict['linkID'] = assocChallenge['linkID']
+                except Exception as e:
+                    print(e)
+                    assocChallenge = {'title':'[ERROR] Original challenge missing'}
+                newDict['title'] = assocChallenge['title']
+            else:
+                for key in ['title', 'linkID']:
+                    newDict[key] = element[key]
+            output.append(newDict)
+        output = sorted(output, key=lambda k: k['modified'], reverse=True)
+        print(output)
+        if not output:
+            return Response(json.dumps({'status': 'success', 'data': []}), mimetype="application/json")
+        return success_json(output)
+    else:
+        return error_json("Invalid session")
+
+@app.route("/api/new/<contentType>")
+def api_newContent(contentType):
+    if validate(session):
+        userData = users.find_one({'username': session['username']})
+        print(contentType)
+        if contentType not in ['challenge', 'editor_standalone']:
+            return error_json("Content type not supported.")
+        linkID = make_linkID()
+        newContent = {
+                'type': contentType,
+                '_id': str(uuid.uuid4()),
+                'description': '## Edit me in the Description tab with Markdown',
+                'title': 'Untitled',
+                'name': linkID,
+                'linkID': linkID,
+                'owner': userData['_id'],
+                'created': float(time.time()),
+                'modified': float(time.time()),
+                'args_mutable': [],
+                'visibility': 'private',
+            }
+        if contentType == "challenge":
+            newContent = {
+                **newContent, 
+                'code': DEFAULT_SOLUTION,
+                'starterCode': DEFAULT_STARTER_CODE
+            }
+        if contentType == "editor_standalone":
+            newContent = {
+                **newContent, 
+                'code': DEFAULT_CODE,
+                'starterCode': DEFAULT_STARTER_CODE
+            }
+        content.insert_one(newContent)
+        return success_json(newContent)
+    else:
+        return error_json("Invalid session")
+
+@app.route("/api/delete/<contentID>")
+def api_deleteContent(contentID):
+    contentData = content.find_one({'_id': contentID})
+    if contentData == None:
+        return error_json("Not found.")
+    if validate(session):
+        userData = users.find_one({'username': session['username']})
+        if contentData['owner'] == userData['_id']:
+            content.delete_one({'_id':contentID})
+            return success_json()
+        else:
+            return error_json("You do not have permission to view this content.")
+    else:
+        error_json("Invalid session")
 
 
 @app.route("/<linkID>")
@@ -660,6 +884,48 @@ def getContent(linkID):
     else:
         session['intent'] = '/'+linkID
         return redirect('/signin')
+
+
+@app.route("/api/getContentFromLinkID/<linkID>")
+def api_getContent(linkID):
+    contentData = content.find_one({'linkID': linkID})
+    if contentData == None:
+        return error_json("Not found.")
+    if validate(session):
+        userData = users.find_one({'username': session['username']})
+        # pageName = "Challenge"
+        # if contentData['type'] == 'challenge':
+        #     pageName = contentData['name']+": editing challenge"
+        # if contentData['type'] == 'editor_standalone':
+        #     pageName = contentData['name']+": editing"
+        if contentData['owner'] == userData['_id']:
+            return success_json(contentData)
+        elif contentData['type'] == 'challenge':
+            editorChallenge = content.find_one(
+                {'owner': userData['_id'], 'type': 'editor_challenge', 'assocChallenge': contentData['_id']})
+            if not editorChallenge:
+                contentID = str(uuid.uuid4())
+                args_immutable = [{'id': arg['id'], 'arg':arg['arg'],
+                                   'match':False} for arg in contentData['args_mutable']]
+                newContent = {
+                    '_id': contentID,
+                    'type': 'editor_challenge',
+                    'owner': userData['_id'],
+                    'assocChallenge': contentData['_id'],
+                    'created': float(time.time()),
+                    'modified': float(time.time()),
+                    'args_mutable': [],
+                    'args_immutable': args_immutable,
+                    'code': contentData['starterCode']
+                }
+                content.insert_one(newContent)
+            else:
+                contentID = editorChallenge['_id']
+            return success_json({'_id':contentID, 'type':'editor_challenge'})
+        else:
+            return error_json("You do not have permission to view this content.")
+    else:
+        error_json("Invalid session")
 
 
 @app.route('/react')
