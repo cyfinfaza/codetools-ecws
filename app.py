@@ -102,8 +102,23 @@ def validate(session):
         return False
 
 
+try:
+    errorsFile = open("./errors.json", "r")
+except:
+    print("Could not open errors.json file.")
+    exit()
+
+try:
+    ERRORS = json.loads(errorsFile.read())
+except:
+    print("Could not parse errors.json file.")
+    exit()
+
 def error_json(error):
-    return Response(json.dumps({'status': 'error', 'error': error}), mimetype="application/json")
+    if error in ERRORS:
+        return Response(json.dumps({'status': 'error', 'errorCode': error, 'error':ERRORS[error]}), mimetype="application/json")
+    else:
+        return Response(json.dumps({'status': 'error', 'errorCode':"api_unknown", 'error': error}), mimetype="application/json")
 
 
 def warn_json(warning):
@@ -199,15 +214,15 @@ def contentSet():
     try:
         setRequest = request.json
     except:
-        return error_json("JSON parse error")
+        return error_json("api_contentset_jsonParse")
     towrite = {}
     if "contentID" not in setRequest:
-        return error_json('Did not specify contentID')
+        return error_json("api_general_contentId")
     contentBefore = content.find_one({'_id': setRequest['contentID']})
     if not contentBefore:
-        return error_json("Content not found")
+        return error_json("api_general_contentNotFound")
     if not validate(session):
-        return error_json("Invalid session")
+        return error_json("api_general_session")
     userData = users.find_one({'username': session['username']})
     owner = contentBefore['owner'] == userData['_id']
     # extraWarn = None
@@ -222,6 +237,10 @@ def contentSet():
         # if type(setRequest['description']) == string:
         towrite['description'] = setRequest['description']
         towrite['modified'] = float(time.time())
+    if 'runMethod' in setRequest and owner:
+        if type(setRequest['runMethod']) == str:
+            towrite['runMethod'] = setRequest['runMethod']
+            towrite['modified'] = float(time.time())
     if contentBefore['type'] == 'challenge':
         if 'instructions' in setRequest and owner:
             setRequest['instructions'] = setRequest['instructions'].replace(
@@ -257,12 +276,12 @@ def contentGet():
     try:
         contentID = request.args['id']
     except:
-        return error_json("Could not read id")
+        return error_json("api_general_contentId")
     userContent = content.find_one({'_id': contentID})
     if not userContent:
-        return error_json("Content not found")
+        return error_json("api_general_contentNotFound")
     if not validate(session):
-        return error_json("Invalid session")
+        return error_json("api_general_session")
     userData = users.find_one({'username': session['username']})
     owner = userContent['owner'] == userData['_id']
     signature = signee.sign(userContent['_id'])
@@ -274,7 +293,7 @@ def contentGet():
     if owner:
         return success_json(userContent)
     else:
-        return error_json("You do not have permission to get this content.")
+        return error_json("api_general_contentReadPermission")
 
 
 @app.route('/newchallenge')
@@ -313,10 +332,10 @@ def contentPermission():
     try:
         contentID = request.args['id']
     except:
-        return error_json("Could not read id")
+        return error_json("api_general_contentId")
     userContent = content.find_one({'_id': contentID})
     if not userContent:
-        return error_json("Content not found")
+        return error_json("api_general_contentNotFound")
     if validate(session):
         userData = users.find_one({'username': session['username']})
         if userContent['owner'] == userData['_id']:
@@ -445,7 +464,7 @@ def api_signin():
     if request.method == 'POST':
         data = users.find_one({'username': requestData['username']})
         if data == None:
-            return error_json("User not found.")
+            return error_json("api_signin_userNotFound")
         if hashing.check_value(data['password_hash'], requestData['password'], salt=data['password_salt']):
             newSessionID = str(uuid.uuid4())
             newSessionKey = make_sess_key()
@@ -464,7 +483,7 @@ def api_signin():
             session['api'] = True
             return success_json()
         else:
-            return error_json("Wrong password.")
+            return error_json("api_general_wrongPassword")
 
 
 @app.route('/signout')
@@ -529,7 +548,7 @@ def api_signup():
     if request.method == 'POST':
         # print(requestData)
         if 'g-recaptcha-response' not in requestData:
-            return error_json("reCAPTCHA verification not recieved.")
+            return error_json("api_signup_reCaptchaNotRecieved")
         recaptcha_reponse = json.loads(requests.post('https://www.google.com/recaptcha/api/siteverify', {
             'secret': RECAPTCHA_SECRET, 'response': requestData['g-recaptcha-response']}).text)
         print(recaptcha_reponse)
@@ -550,11 +569,11 @@ def api_signup():
                         'sessions': []
                     })
                 else:
-                    return error_json("User already exists. Try signing in.")
+                    return error_json("api_signup_userExists")
             else:
-                return error_json("Minimum length: Username: 3 characters; Password: 8 characters")
+                return error_json("api_signup_length")
         else:
-            return error_json("reCAPTCHA verification error occurred. Ensure you are not a robot.")
+            return error_json("api_signup_reCaptchaVerification")
         return success_json()
 
 
@@ -575,7 +594,7 @@ def fetchAuth():
         sessID_sig = signee.sign(session['sessionID'])
         return success_json({**session, 'sessionID_sig': sessID_sig})
     else:
-        return error_json('Invalid Session')
+        return error_json("api_general_session")
 
 
 @app.route('/sessions/kill/<sessionID>')
@@ -601,7 +620,7 @@ def api_killSession(sessionID):
         except:
             return error_json("Failed to kill session")
     else:
-        return error_json("Invalid session")
+        return error_json("api_general_session")
 
 
 @app.route("/changepassword", methods=['GET', 'POST'])
@@ -642,11 +661,11 @@ def api_changePassword():
                     }})
                     return success_json()
                 else:
-                    return error_json("New password must be 8 or more characters.")
+                    return error_json("api_changepassword_length")
             else:
-                return error_json("Wrong password.")
+                return error_json("api_general_wrongPassword")
     else:
-        error_json("Invalid session")
+        error_json("api_general_session")
 
 @app.route("/deleteaccount", methods=['GET', 'POST'])
 def deleteAccount():
@@ -674,9 +693,9 @@ def api_deleteAccount():
                 users.delete_one({'username': session['username']})
                 return success_json()
             else:
-                return error_json("Wrong password.")
+                return error_json("api_general_wrongPassword")
     else:
-        return error_json("Invalid session")
+        return error_json("api_general_session")
 
 
 @app.route("/changeactualname", methods=['GET', 'POST'])
@@ -705,10 +724,10 @@ def api_changeActualName():
                 users.update_one({'username': session['username']}, {
                     '$set': {'actualname': requestData['newName']}})
             else:
-                return error_json("Name must be at least one character.")
+                return error_json("api_changeactualname_length")
         return success_json()
     else:
-        return error_json("Invalid session")
+        return error_json("api_general_session")
 
 
 @app.route('/account')
@@ -755,7 +774,7 @@ def api_account():
         accountData.pop("password_salt")
         return success_json(accountData)
     else:
-        return error_json("Invalid session")
+        return error_json("api_general_session")
 
 @app.route("/api/myContent")
 def api_mycontent():
@@ -788,7 +807,7 @@ def api_mycontent():
             return Response(json.dumps({'status': 'success', 'data': []}), mimetype="application/json")
         return success_json(output)
     else:
-        return error_json("Invalid session")
+        return error_json("api_general_session")
 
 @app.route("/api/new/<contentType>")
 def api_newContent(contentType):
@@ -796,7 +815,7 @@ def api_newContent(contentType):
         userData = users.find_one({'username': session['username']})
         print(contentType)
         if contentType not in ['challenge', 'editor_standalone']:
-            return error_json("Content type not supported.")
+            return error_json("api_new_contentType")
         linkID = make_linkID()
         newContent = {
                 'type': contentType,
@@ -826,22 +845,22 @@ def api_newContent(contentType):
         content.insert_one(newContent)
         return success_json(newContent)
     else:
-        return error_json("Invalid session")
+        return error_json("api_general_session")
 
 @app.route("/api/delete/<contentID>")
 def api_deleteContent(contentID):
     contentData = content.find_one({'_id': contentID})
     if contentData == None:
-        return error_json("Not found.")
+        return error_json("api_general_contentNotFound")
     if validate(session):
         userData = users.find_one({'username': session['username']})
         if contentData['owner'] == userData['_id']:
             content.delete_one({'_id':contentID})
             return success_json()
         else:
-            return error_json("You do not have permission to view this content.")
+            return error_json("api_general_contentWritePermission")
     else:
-        error_json("Invalid session")
+        error_json("api_general_session")
 
 
 @app.route("/<linkID>")
@@ -890,7 +909,7 @@ def getContent(linkID):
 def api_getContent(linkID):
     contentData = content.find_one({'linkID': linkID})
     if contentData == None:
-        return error_json("Not found.")
+        return error_json("api_general_contentNotFound")
     if validate(session):
         userData = users.find_one({'username': session['username']})
         # pageName = "Challenge"
@@ -923,9 +942,9 @@ def api_getContent(linkID):
                 contentID = editorChallenge['_id']
             return success_json({'_id':contentID, 'type':'editor_challenge'})
         else:
-            return error_json("You do not have permission to view this content.")
+            return error_json("api_general_contentReadPermission")
     else:
-        error_json("Invalid session")
+        return error_json("api_general_session")
 
 
 @app.route('/react')
