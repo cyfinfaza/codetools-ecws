@@ -119,6 +119,11 @@ class WS_SendObject:
         self.ws = ws
         self.message = message
 
+# Load environment variables
+load_dotenv()
+MONGODB_CONNECTION_STRING = environ.get('MONGODB_CONNECTION_STRING')
+SIGNEE_PUBLICKEY = environ.get('SIGNEE_PUBLICKEY')
+SIGNEE_PRIVATEKEY = environ.get('SIGNEE_PRIVATEKEY')
 
 # Load IP Allow List
 allowedIPs = list(line.strip() for line in open(
@@ -126,11 +131,10 @@ allowedIPs = list(line.strip() for line in open(
 print(f'Allwed IPs: {allowedIPs}')
 
 # Load authenticity checker signee
-signee = Signee(open('keys.json', 'r'))
+# signee = Signee.fromFile(open('keys.json', 'r'))
+signee = Signee(SIGNEE_PUBLICKEY, SIGNEE_PRIVATEKEY)
 
 # Load MongoDB
-load_dotenv()
-MONGODB_CONNECTION_STRING = environ.get('MONGODB_CONNECTION_STRING')
 client = pymongo.MongoClient(MONGODB_CONNECTION_STRING)
 db = client['codetools']
 users = db['users']

@@ -21,11 +21,14 @@ from os import environ
 from keyMakeSignCheck.KeyManagement import Signee
 
 load_dotenv()
+MONGODB_CONNECTION_STRING = environ.get('MONGODB_CONNECTION_STRING')
 RECAPTCHA_SECRET = environ.get('RECAPTCHA_SECRET')
 RECAPTCHA_SITEKEY = environ.get('RECAPTCHA_SITEKEY')
-MONGODB_CONNECTION_STRING = environ.get('MONGODB_CONNECTION_STRING')
+SIGNEE_PUBLICKEY = environ.get('SIGNEE_PUBLICKEY')
+SIGNEE_PRIVATEKEY = environ.get('SIGNEE_PRIVATEKEY')
 
-signee = Signee(open('keys.json', 'r'))
+# signee = Signee.fromFile(open('keys.json', 'r'))
+signee = Signee(SIGNEE_PUBLICKEY, SIGNEE_PRIVATEKEY)
 
 jrunnerClient = JRunner5Client("127.0.0.1", 5791)
 
