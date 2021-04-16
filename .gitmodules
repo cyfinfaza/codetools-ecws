@@ -1,0 +1,3 @@
+[submodule "jrunner5"]
+	path = jrunner5
+	url = git://github.com/cdknight/jrunner5
