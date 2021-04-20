@@ -322,6 +322,8 @@ def saveChallengeResult(contentID, successful, output):
 
 
 async def initial(path, request_headers):
+    print(request_headers)
+    return None
     remoteIP = request_headers['Remote-IP']
     print(f'[{remoteIP}] {path}', end=" ")
     pathonly = urlparse(path).path
@@ -452,8 +454,8 @@ async def server(websocket: WebSocketServerProtocol, path):
 print("CAN YOU HEAR ME I AM HERE I THINK I AM WORKING #1")
 try:
     start_server = websockets.serve(
-        server, "", int(environ.get('PORT')), extensions=[
-        # server, "", int(environ.get('PORT')), process_request=initial, extensions=[
+        # server, "", int(environ.get('PORT')), extensions=[
+        server, "", int(environ.get('PORT')), process_request=initial, extensions=[
             ServerPerMessageDeflateFactory(
                 server_max_window_bits=15, # kotlin is bad, so we must do this, and then it shall work
                 client_max_window_bits=15,
