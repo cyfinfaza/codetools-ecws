@@ -1,1 +1,1 @@
-web: python managementWS.py
+web: python3 managementWS.py
