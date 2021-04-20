@@ -322,9 +322,10 @@ def saveChallengeResult(contentID, successful, output):
 
 
 async def initial(path, request_headers):
-    print(request_headers)
-    return None
-    remoteIP = request_headers['Remote-IP']
+    try:
+        remoteIP = request_headers['Remote-IP']
+    except:
+        remoteIP = request_headers['X-Forwarded-For'].split(", ")[-1]
     print(f'[{remoteIP}] {path}', end=" ")
     pathonly = urlparse(path).path
     if pathonly not in [EMPLOYEE_PATH, CUSTOMER_PATH, POPRX_PATH]:
