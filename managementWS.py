@@ -216,7 +216,7 @@ def generateRequestBinary(job: EC_JobManager.Job):
     request.id = job.id
     request.inputMethod = job.meta['code']
     request.inputMethodName = "solution" if job.meta['editorType'] == "challenge" else job.meta['runMethod']
-    request.solutionMethod = job.meta['solution'] if 'solution' in job.meta else job.meta['code'].replace(job.meta['runMethod'], "solution")
+    request.solutionMethod = job.meta['solution'] if 'solution' in job.meta else GENERIC_SOLUTION
     request.inputs.extend(job.meta['args'])
     request.timeout = job.meta['timeout']
     return request.SerializeToString()
