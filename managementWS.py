@@ -32,7 +32,7 @@ import traceback
 try:
     import jrunner5.python.reqres_pb2 as reqres_pb2
 except:
-    import app.jrunner5.python.reqres_pb2 as reqres_pb2
+    import reqres_pb2
 
 
 hasher = hashing()
