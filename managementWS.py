@@ -437,7 +437,7 @@ async def server(websocket: WebSocketServerProtocol, path):
 # Start WebSocket server
 try:
     start_server = websockets.serve(
-        server, "0.0.0.0", 5600, process_request=initial, extensions=[
+        server, "", environ.get('PORT'), process_request=initial, extensions=[
             ServerPerMessageDeflateFactory(
                 server_max_window_bits=15, # kotlin is bad, so we must do this, and then it shall work
                 client_max_window_bits=15,
