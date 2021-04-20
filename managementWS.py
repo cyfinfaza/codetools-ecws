@@ -435,9 +435,10 @@ async def server(websocket: WebSocketServerProtocol, path):
             await conn.send(json.dumps({'type': 'rxGroupUpdate', 'employees': len(connectionGroup.employees), 'customers': len(connectionGroup.customers)}))
 
 # Start WebSocket server
+print("CAN YOU HEAR ME I AM HERE I THINK I AM WORKING #1")
 try:
     start_server = websockets.serve(
-        server, "", environ.get('PORT'), process_request=initial, extensions=[
+        server, "", int(environ.get('PORT')), process_request=initial, extensions=[
             ServerPerMessageDeflateFactory(
                 server_max_window_bits=15, # kotlin is bad, so we must do this, and then it shall work
                 client_max_window_bits=15,
@@ -455,3 +456,4 @@ except KeyboardInterrupt or SystemExit:
         # Do whatever you need to do before exiting (not needed atm)
     except KeyboardInterrupt or SystemExit:
         print("Exiting regardless.")
+print("CAN YOU HEAR ME I AM HERE I THINK I AM WORKING #2")
