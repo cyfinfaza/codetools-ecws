@@ -18,8 +18,13 @@ from keyMakeSignCheck.KeyManagement import Signee
 import time
 import requests
 from flask_hashing import Hashing as hashing
-import jrunner5.python.reqres_pb2 as reqres_pb2
 import traceback
+
+try:
+    import jrunner5.python.reqres_pb2 as reqres_pb2
+except:
+    import app.jrunner5.python.reqres_pb2 as reqres_pb2
+
 
 hasher = hashing()
 
