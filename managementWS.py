@@ -107,8 +107,8 @@ class EC_JobManager:
             else:
                 if leastWork[1] > workCount[employee]:
                     leastWork = (employee, workCount[employee])
+        jobToProvision.employee = leastWork[0]
         self.jobs.add(jobToProvision)
-        jobToProvision.employee = employee
         return True
 
     def complete(self, jobToRemove: Job):
@@ -395,6 +395,7 @@ async def server(websocket: WebSocketServerProtocol, path):
                 response.ParseFromString(message)
                 # print(str(response))
                 job: EC_JobManager.Job = jobManager.jobsByID()[response.id]
+                jobManager.complete(job)
                 # print(job.meta)
                 # resultsMerged = []
                 # for i in range(len(response.results)):
