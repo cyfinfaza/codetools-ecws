@@ -28,11 +28,7 @@ import time
 import requests
 from flask_hashing import Hashing as hashing
 import traceback
-
-try:
-    import jrunner5.python.reqres_pb2 as reqres_pb2
-except:
-    import reqres_pb2
+import reqres_pb2
 
 
 hasher = hashing()
